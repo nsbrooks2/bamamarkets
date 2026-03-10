@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { Listing, User } from '../types';
 import { MessageSquare, CreditCard, User as UserIcon, Tag, Calendar, ChevronLeft, Zap, AlertCircle, Heart, Star, MapPin, ChevronRight, ChevronLeft as ChevronLeftIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDistanceToNow } from 'date-fns';
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { Favorite, Review } from '../types';
 
 export const ListingDetail: React.FC = () => {
@@ -25,11 +24,6 @@ export const ListingDetail: React.FC = () => {
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
-  });
-
   useEffect(() => {
     fetchListing();
     if (user && id) {
@@ -40,12 +34,15 @@ export const ListingDetail: React.FC = () => {
   const fetchListing = async () => {
     if (!id) return;
     setLoading(true);
+    console.log('Searching for ID:', id);
     try {
       const { data, error } = await supabase
         .from('listings')
-        .select('*, seller:users(*)')
+        .select('*, seller:profiles(*)')
         .eq('id', id)
         .single();
+
+      console.log('Supabase Response:', { data, error });
 
       if (error) throw error;
       setListing(data);
@@ -54,7 +51,7 @@ export const ListingDetail: React.FC = () => {
       // Fetch reviews for the seller
       const { data: reviewsData } = await supabase
         .from('reviews')
-        .select('*, reviewer:users(*)')
+        .select('*, reviewer:profiles(*)')
         .eq('seller_id', data.seller_id)
         .order('created_at', { ascending: false });
       
@@ -131,16 +128,6 @@ export const ListingDetail: React.FC = () => {
   const images = listing?.images && listing.images.length > 0 
     ? listing.images 
     : [listing?.image_url].filter(Boolean) as string[];
-
-  const mapContainerStyle = {
-    width: '100%',
-    height: '300px'
-  };
-
-  const center = {
-    lat: listing?.lat || 33.2140, // Default to UA
-    lng: listing?.lng || -87.5391
-  };
 
   const handleSendMessage = async () => {
     if (!user || !listing || !message.trim()) return;
@@ -286,32 +273,21 @@ export const ListingDetail: React.FC = () => {
             </div>
           )}
 
-          {/* Map Section */}
-          <div className="p-6 bg-white rounded-2xl border border-stone-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-stone-900 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-crimson-600" />
-              Location
-            </h3>
-            <div className="rounded-xl overflow-hidden border border-stone-100">
-              {isLoaded ? (
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={center}
-                  zoom={15}
-                  options={{
-                    disableDefaultUI: true,
-                    zoomControl: true,
-                  }}
-                >
-                  <Marker position={center} />
-                </GoogleMap>
-              ) : (
-                <div className="h-[300px] bg-stone-50 flex items-center justify-center text-stone-400">
-                  Loading Map...
+          {/* Location Section */}
+          {listing.location_name && (
+            <div className="p-6 bg-white rounded-2xl border border-stone-200 shadow-sm space-y-4">
+              <h3 className="font-bold text-stone-900 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-crimson-600" />
+                Location
+              </h3>
+              <div className="p-4 bg-stone-50 rounded-xl border border-stone-100 flex items-center gap-3">
+                <div className="bg-white p-2 rounded-lg shadow-sm">
+                  <MapPin className="w-4 h-4 text-stone-400" />
                 </div>
-              )}
+                <p className="font-medium text-stone-700">{listing.location_name}</p>
+              </div>
             </div>
-          </div>
+          )}
         </motion.div>
 
         {/* Right: Info */}
@@ -347,20 +323,30 @@ export const ListingDetail: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-4 p-4 bg-stone-100 rounded-2xl">
-            <div className="bg-white p-2 rounded-xl shadow-sm">
-              <UserIcon className="w-6 h-6 text-stone-400" />
+          <Link to={`/profile/${listing.seller_id}`} className="flex items-center gap-4 p-4 bg-stone-100 rounded-2xl hover:bg-stone-200 transition-all group">
+            <div className="bg-white p-2 rounded-xl shadow-sm overflow-hidden w-10 h-10 flex items-center justify-center">
+              {seller?.avatar_url ? (
+                <img src={seller.avatar_url} className="w-full h-full object-cover" alt="" />
+              ) : (
+                <UserIcon className="w-6 h-6 text-stone-400" />
+              )}
             </div>
             <div>
               <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">Seller</p>
-              <p className="font-semibold text-stone-900">{seller?.email?.split('@')[0] || 'Anonymous'}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-stone-900 group-hover:text-crimson-600 transition-colors">
+                  {seller?.full_name || seller?.email?.split('@')[0] || 'Anonymous'}
+                </p>
+                {seller?.username && <span className="text-xs text-stone-400 font-medium">@{seller.username}</span>}
+              </div>
               <p className="text-xs text-stone-500">University of Alabama Student</p>
             </div>
-            <div className="ml-auto text-right">
+            <div className="ml-auto text-right flex flex-col items-end gap-1">
               <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">Posted</p>
               <p className="text-sm text-stone-600">{formatDistanceToNow(new Date(listing.created_at), { addSuffix: true })}</p>
+              <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-crimson-400 transition-colors" />
             </div>
-          </div>
+          </Link>
 
           {user?.id !== listing.seller_id ? (
             <div className="space-y-4">
@@ -424,9 +410,9 @@ export const ListingDetail: React.FC = () => {
                 reviews.map((review) => (
                   <div key={review.id} className="p-4 bg-stone-50 rounded-xl space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-sm text-stone-900">
-                        {review.reviewer?.email?.split('@')[0] || 'Anonymous'}
-                      </p>
+                      <Link to={`/profile/${review.reviewer_id}`} className="font-bold text-sm text-stone-900 hover:text-crimson-600 transition-colors">
+                        {review.reviewer?.full_name || review.reviewer?.email?.split('@')[0] || 'Anonymous'}
+                      </Link>
                       <div className="flex gap-0.5">
                         {[...Array(5)].map((_, i) => (
                           <Star 

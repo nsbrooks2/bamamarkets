@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { Notification } from '../types';
-import { Bell, MessageSquare, Heart, Zap, Check, Trash2, AlertCircle } from 'lucide-react';
+import { Bell, MessageSquare, Heart, Zap, Check, Trash2, AlertCircle, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -112,6 +112,8 @@ export const Notifications: React.FC = () => {
         return <Heart className="w-5 h-5 text-crimson-600 fill-crimson-600" />;
       case 'offer':
         return <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />;
+      case 'follow':
+        return <Users className="w-5 h-5 text-emerald-500" />;
       default:
         return <Bell className="w-5 h-5 text-stone-500" />;
     }

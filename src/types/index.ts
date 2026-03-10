@@ -8,10 +8,24 @@ export interface University {
 export interface User {
   id: string;
   email: string;
-  name?: string;
+  full_name?: string;
+  username?: string;
+  bio?: string;
+  avatar_url?: string;
+  banner_url?: string;
   university_id?: string;
+  location?: string;
   created_at: string;
   university?: University;
+  followers_count?: number;
+  following_count?: number;
+}
+
+export interface Follow {
+  id: string;
+  follower_id: string;
+  following_id: string;
+  created_at: string;
 }
 
 export interface Listing {
@@ -29,6 +43,7 @@ export interface Listing {
   views: number;
   lat?: number;
   lng?: number;
+  location_name?: string;
   created_at: string;
   seller?: User;
   university?: University;
@@ -55,7 +70,7 @@ export interface Review {
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'message' | 'favorite' | 'offer' | 'system';
+  type: 'message' | 'favorite' | 'offer' | 'system' | 'follow';
   content: string;
   read: boolean;
   link?: string;

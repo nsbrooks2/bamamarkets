@@ -13,12 +13,19 @@ import { Login } from './pages/Login';
 import { Messages } from './pages/Messages';
 import { Trending } from './pages/Trending';
 import { Profile } from './pages/Profile';
+import { PublicProfile } from './pages/PublicProfile';
 import { EditListing } from './pages/EditListing';
 import { Favorites } from './pages/Favorites';
 import { Notifications } from './pages/Notifications';
 import { AuthProvider } from './components/AuthProvider';
+import { useEffect } from 'react';
+import { initializeStorage } from './lib/supabase';
 
 export default function App() {
+  useEffect(() => {
+    initializeStorage();
+  }, []);
+
   return (
     <Router>
       <AuthProvider>
@@ -34,6 +41,7 @@ export default function App() {
               <Route path="/messages" element={<Messages />} />
               <Route path="/trending" element={<Trending />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/:id" element={<PublicProfile />} />
               <Route path="/edit/:id" element={<EditListing />} />
               <Route path="/favorites" element={<Favorites />} />
               <Route path="/notifications" element={<Notifications />} />

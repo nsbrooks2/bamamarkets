@@ -13,37 +13,30 @@ export const CreateListing: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
-  const [gettingLocation, setGettingLocation] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
     price: '',
     category: CATEGORIES[0],
-    description: ''
+    description: '',
+    locationName: ''
   });
 
   useEffect(() => {
-    // Try to get user location on mount
-    handleGetLocation();
-  }, []);
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
 
-  const handleGetLocation = () => {
-    if (navigator.geolocation) {
-      setGettingLocation(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setGettingLocation(false);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          setGettingLocation(false);
-        }
-      );
+  const fetchUserProfile = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('location')
+      .eq('id', user?.id)
+      .single();
+    
+    if (data?.location) {
+      setFormData(prev => ({ ...prev, locationName: data.location }));
     }
   };
 
@@ -73,44 +66,38 @@ export const CreateListing: React.FC = () => {
       const imageUrls: string[] = [];
 
       for (const img of images) {
-        const formDataUpload = new FormData();
-        formDataUpload.append('image', img);
-        formDataUpload.append('userId', user.id);
+        const fileExt = img.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
 
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataUpload
+        const { error: uploadError } = await supabase.storage
+          .from('listing-images')
+          .upload(filePath, img);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('listing-images')
+          .getPublicUrl(filePath);
+
+        imageUrls.push(publicUrl);
+      }
+
+      const { error: insertError } = await supabase
+        .from('listings')
+        .insert({
+          title: formData.title,
+          description: formData.description,
+          price: parseFloat(formData.price),
+          category: formData.category,
+          image_url: imageUrls[0] || '',
+          images: imageUrls,
+          location_name: formData.locationName,
+          university_id: UA_UNIVERSITY_ID,
+          seller_id: user.id
         });
 
-        if (!uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          throw new Error(uploadData.error || 'Failed to upload image');
-        }
-
-        const { url } = await uploadResponse.json();
-        imageUrls.push(url);
-      }
-
-      const response = await fetch('/api/listings/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: formData.title,
-          price: formData.price,
-          category: formData.category,
-          description: formData.description,
-          imageUrl: imageUrls[0] || '', // Main image
-          images: imageUrls, // All images
-          lat: location?.lat,
-          lng: location?.lng,
-          userId: user.id
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create listing');
-      }
+      if (insertError) throw insertError;
 
       navigate('/');
     } catch (err: any) {
@@ -197,33 +184,6 @@ export const CreateListing: React.FC = () => {
             />
           </div>
 
-          {/* Location Status */}
-          <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-xl ${location ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-200 text-stone-500'}`}>
-                <MapPin className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-stone-900">
-                  {location ? 'Location Tagged' : 'Location Optional'}
-                </p>
-                <p className="text-xs text-stone-500">
-                  {location ? 'Your current location will be shown on the map.' : 'Enable location for better discovery.'}
-                </p>
-              </div>
-            </div>
-            {!location && (
-              <button
-                type="button"
-                onClick={handleGetLocation}
-                disabled={gettingLocation}
-                className="text-xs font-bold text-crimson-600 hover:text-crimson-700 transition-colors"
-              >
-                {gettingLocation ? 'Getting...' : 'Retry'}
-              </button>
-            )}
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1">
               <label className="text-sm font-semibold text-stone-700 ml-1">Title</label>
@@ -238,18 +198,33 @@ export const CreateListing: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-semibold text-stone-700 ml-1">Price ($)</label>
-              <input 
-                type="number"
-                required
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              />
+              <label className="text-sm font-semibold text-stone-700 ml-1">Dorm / Apartment Name</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
+                <input 
+                  type="text"
+                  required
+                  placeholder="e.g. Tutwiler Hall"
+                  className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                  value={formData.locationName}
+                  onChange={(e) => setFormData({ ...formData, locationName: e.target.value })}
+                />
+              </div>
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-stone-700 ml-1">Price ($)</label>
+            <input 
+              type="number"
+              required
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+              value={formData.price}
+              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            />
           </div>
 
           <div className="space-y-1">

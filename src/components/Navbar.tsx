@@ -8,13 +8,27 @@ export const Navbar: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchUnreadCount();
+      fetchUserProfile();
       subscribeToNotifications();
     }
   }, [user]);
+
+  const fetchUserProfile = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user?.id)
+      .single();
+    
+    if (data?.avatar_url) {
+      setAvatarUrl(data.avatar_url);
+    }
+  };
 
   const fetchUnreadCount = async () => {
     const { count } = await supabase
@@ -58,7 +72,12 @@ export const Navbar: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center gap-2">
-            <ShoppingBag className="w-8 h-8 text-crimson-600" />
+            <img 
+              src="https://image2url.com/r2/default/images/1773109092662-96a62cec-da16-4e55-8b35-10fc33a12886.png" 
+              alt="BamaMarkets Logo" 
+              className="w-10 h-10 object-contain"
+              referrerPolicy="no-referrer"
+            />
             <div className="flex flex-col">
               <span className="text-xl font-bold tracking-tight text-stone-900 leading-none">BamaMarkets</span>
               <span className="text-[10px] font-bold text-crimson-600 uppercase tracking-widest">University of Alabama</span>
@@ -105,10 +124,16 @@ export const Navbar: React.FC = () => {
                 </Link>
                 <Link 
                   to="/profile"
-                  className="flex items-center gap-2 px-3 py-1.5 bg-stone-100 rounded-full hover:bg-stone-200 transition-all"
+                  className="flex items-center gap-2 p-1 bg-stone-100 rounded-full hover:bg-stone-200 transition-all"
                 >
-                  <User className="w-4 h-4 text-stone-500" />
-                  <span className="text-sm font-medium text-stone-700 truncate max-w-[100px] hidden sm:inline">
+                  <div className="w-8 h-8 bg-white rounded-full overflow-hidden flex items-center justify-center border border-stone-200">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <User className="w-4 h-4 text-stone-500" />
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-stone-700 truncate max-w-[100px] hidden sm:inline pr-2">
                     {user.user_metadata?.full_name || user.email?.split('@')[0]}
                   </span>
                 </Link>
@@ -136,7 +161,12 @@ export const Navbar: React.FC = () => {
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 px-2 py-3 z-50">
         <div className="flex justify-between items-center">
           <Link to="/" className="flex flex-col items-center gap-1 text-stone-400 hover:text-crimson-600">
-            <ShoppingBag className="w-6 h-6" />
+            <img 
+              src="https://image2url.com/r2/default/images/1773109092662-96a62cec-da16-4e55-8b35-10fc33a12886.png" 
+              alt="Home" 
+              className="w-6 h-6 object-contain"
+              referrerPolicy="no-referrer"
+            />
             <span className="text-[10px] font-bold uppercase tracking-tighter">Home</span>
           </Link>
           <Link to="/favorites" className="flex flex-col items-center gap-1 text-stone-400 hover:text-crimson-600">

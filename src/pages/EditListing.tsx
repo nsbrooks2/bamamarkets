@@ -75,42 +75,35 @@ export const EditListing: React.FC = () => {
       let imageUrl = imagePreview;
 
       if (image) {
-        const formDataUpload = new FormData();
-        formDataUpload.append('image', image);
-        formDataUpload.append('userId', user.id);
+        const fileExt = image.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
 
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataUpload
-        });
+        const { error: uploadError } = await supabase.storage
+          .from('listing-images')
+          .upload(filePath, image);
 
-        if (!uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          throw new Error(uploadData.error || 'Failed to upload image');
-        }
+        if (uploadError) throw uploadError;
 
-        const { url } = await uploadResponse.json();
-        imageUrl = url;
+        const { data: { publicUrl } } = supabase.storage
+          .from('listing-images')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
       }
 
-      const response = await fetch('/api/listings/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id,
+      const { error: updateError } = await supabase
+        .from('listings')
+        .update({
           title: formData.title,
-          price: formData.price,
+          price: parseFloat(formData.price),
           category: formData.category,
           description: formData.description,
-          imageUrl,
-          userId: user.id
+          image_url: imageUrl || undefined,
         })
-      });
+        .eq('id', id);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update listing');
-      }
+      if (updateError) throw updateError;
 
       navigate('/my-listings');
     } catch (err: any) {

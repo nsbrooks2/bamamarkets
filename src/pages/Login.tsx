@@ -25,7 +25,7 @@ export const Login: React.FC = () => {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -36,12 +36,26 @@ export const Login: React.FC = () => {
           }
         });
         
-        if (error) throw error;
+        if (signUpError) throw signUpError;
         
-        if (data.session) {
+        // If Supabase is configured to auto-confirm or if it returns a session immediately
+        if (signUpData.session) {
           navigate('/');
         } else {
-          alert('Check your email for the confirmation link! If you don\'t see it, check your spam folder.');
+          // Attempt to sign in immediately after sign up
+          // This handles cases where sign up succeeds but doesn't auto-login 
+          // (though usually this is due to email confirmation being required)
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (signInError) {
+            // If sign in fails after sign up, it's likely email confirmation is required
+            alert('Account created! Please check your email for the confirmation link to activate your account.');
+          } else if (signInData.session) {
+            navigate('/');
+          }
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -83,8 +97,13 @@ export const Login: React.FC = () => {
         className="bg-white p-8 rounded-3xl border border-stone-200 shadow-xl"
       >
         <div className="text-center mb-8">
-          <div className="bg-crimson-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <ShoppingBag className="w-8 h-8 text-crimson-600" />
+          <div className="bg-white w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-stone-100">
+            <img 
+              src="https://image2url.com/r2/default/images/1773109092662-96a62cec-da16-4e55-8b35-10fc33a12886.png" 
+              alt="BamaMarkets Logo" 
+              className="w-14 h-14 object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <h2 className="text-2xl font-bold text-stone-900">
             {isSignUp ? 'Create an account' : 'Welcome back'}

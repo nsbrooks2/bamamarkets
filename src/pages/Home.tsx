@@ -15,34 +15,10 @@ export const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [sortBy, setSortBy] = useState<'newest' | 'price_asc' | 'price_desc' | 'popular'>('newest');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
-  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
-  const [showNearMe, setShowNearMe] = useState(false);
 
   useEffect(() => {
     fetchListings();
-  }, [selectedCategory, sortBy, showNearMe]);
-
-  const handleNearMe = () => {
-    if (!showNearMe) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setUserLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            });
-            setShowNearMe(true);
-          },
-          (error) => {
-            console.error('Error getting location:', error);
-            alert('Could not get your location. Please enable location services.');
-          }
-        );
-      }
-    } else {
-      setShowNearMe(false);
-    }
-  };
+  }, [selectedCategory, sortBy]);
 
   const fetchListings = async () => {
     setLoading(true);
@@ -57,6 +33,8 @@ export const Home: React.FC = () => {
       }
 
       // Sorting
+      query = query.order('boosted', { ascending: false });
+
       if (sortBy === 'newest') {
         query = query.order('created_at', { ascending: false });
       } else if (sortBy === 'price_asc') {
@@ -73,20 +51,8 @@ export const Home: React.FC = () => {
       
       let results = data || [];
 
-      // Client-side filtering for price and location (since SQL distance is complex without PostGIS)
+      // Client-side filtering for price
       results = results.filter(listing => listing.price >= priceRange[0] && listing.price <= priceRange[1]);
-
-      if (showNearMe && userLocation) {
-        // Simple distance filter (approximate)
-        results = results.filter(listing => {
-          if (!listing.lat || !listing.lng) return false;
-          const dist = Math.sqrt(
-            Math.pow(listing.lat - userLocation.lat, 2) + 
-            Math.pow(listing.lng - userLocation.lng, 2)
-          );
-          return dist < 0.1; // Roughly 10km
-        });
-      }
 
       setListings(results);
     } catch (error) {
@@ -139,18 +105,6 @@ export const Home: React.FC = () => {
         <CategoryFilter selectedCategory={selectedCategory} onSelect={setSelectedCategory} />
         
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-          <button
-            onClick={handleNearMe}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all border ${
-              showNearMe 
-                ? 'bg-crimson-50 border-crimson-200 text-crimson-700' 
-                : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'
-            }`}
-          >
-            <Search className="w-4 h-4" />
-            Near Me
-          </button>
-
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { Listing } from '../types';
-import { Trash2, Zap, AlertCircle, ShoppingBag, PlusCircle, ExternalLink, Edit2 } from 'lucide-react';
+import { Trash2, Zap, AlertCircle, ShoppingBag, PlusCircle, ExternalLink, Edit2, X, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 
@@ -11,6 +11,8 @@ export const MyListings: React.FC = () => {
   const navigate = useNavigate();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [boostingListing, setBoostingListing] = useState<Listing | null>(null);
+  const [isBoosting, setIsBoosting] = useState(false);
 
   useEffect(() => {
     if (user) fetchMyListings();
@@ -36,43 +38,50 @@ export const MyListings: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!user || !confirm('Are you sure you want to delete this listing?')) return;
+    if (!user) return;
+    
+    const firstConfirm = window.confirm('Are you sure you want to delete this listing?');
+    if (!firstConfirm) return;
+
+    const secondConfirm = window.confirm('This action cannot be undone. Final warning: Delete?');
+    if (!secondConfirm) return;
     
     try {
-      const response = await fetch('/api/listings/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, userId: user.id })
-      });
+      const { error } = await supabase
+        .from('listings')
+        .delete()
+        .eq('id', id)
+        .eq('seller_id', user.id);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete listing');
-      }
+      if (error) throw error;
 
-      setListings(listings.filter(l => l.id !== id));
+      // Force refresh the page to ensure the list is updated
+      window.location.reload();
     } catch (err: any) {
+      console.error('Error deleting listing:', err);
       alert('Error deleting listing: ' + err.message);
     }
   };
 
-  const handleBoost = async (id: string) => {
-    if (!user) return;
+  const handleBoost = async () => {
+    if (!user || !boostingListing) return;
     
+    setIsBoosting(true);
     try {
-      const response = await fetch('/api/payments/create-boost-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listingId: id,
-          userId: user.id
-        })
-      });
+      const { error } = await supabase
+        .from('listings')
+        .update({ boosted: true })
+        .eq('id', boostingListing.id);
+
+      if (error) throw error;
       
-      const { url } = await response.json();
-      if (url) window.location.href = url;
+      setListings(listings.map(l => l.id === boostingListing.id ? { ...l, boosted: true } : l));
+      setBoostingListing(null);
     } catch (err) {
-      console.error('Error creating boost checkout:', err);
+      console.error('Error boosting listing:', err);
+      alert('Failed to boost listing');
+    } finally {
+      setIsBoosting(false);
     }
   };
 
@@ -161,7 +170,7 @@ export const MyListings: React.FC = () => {
                   <Edit2 className="w-5 h-5" />
                 </Link>
                 <button 
-                  onClick={() => handleBoost(listing.id)}
+                  onClick={() => setBoostingListing(listing)}
                   disabled={listing.boosted}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${
                     listing.boosted 
@@ -197,6 +206,54 @@ export const MyListings: React.FC = () => {
             <PlusCircle className="w-5 h-5" />
             Create Your First Listing
           </Link>
+        </div>
+      )}
+
+      {/* Boost Modal */}
+      {boostingListing && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative"
+          >
+            <button 
+              onClick={() => setBoostingListing(null)}
+              className="absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-900 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="bg-amber-100 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+              <Zap className="w-8 h-8 text-amber-600 fill-amber-600" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-stone-900 mb-2">Boost Your Listing</h2>
+            <p className="text-stone-500 mb-6">
+              Boosting your listing puts it at the very top of the home page for all students to see. 
+              This increases visibility and helps you sell faster!
+            </p>
+
+            <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100 mb-8">
+              <div className="flex justify-between items-center">
+                <span className="text-stone-600 font-medium">One-time Boost Fee</span>
+                <span className="text-xl font-bold text-stone-900">$2.00</span>
+              </div>
+            </div>
+
+            <button 
+              onClick={handleBoost}
+              disabled={isBoosting}
+              className="w-full py-4 bg-crimson-600 text-white rounded-xl font-bold hover:bg-crimson-700 transition-all shadow-lg shadow-crimson-200 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isBoosting ? 'Processing...' : 'Confirm Boost'}
+              <CheckCircle2 className="w-5 h-5" />
+            </button>
+            
+            <p className="text-center text-xs text-stone-400 mt-4">
+              By confirming, you agree to the $2.00 boost fee.
+            </p>
+          </motion.div>
         </div>
       )}
     </div>

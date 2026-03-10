@@ -148,13 +148,27 @@ async function startServer() {
   app.post("/api/auth/signup", authLimiter, async (req, res) => {
     const { email, password, data } = req.body;
     try {
-      const { data: authData, error } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: { data }
       });
-      if (error) throw error;
-      res.json(authData);
+      if (signUpError) throw signUpError;
+      
+      if (signUpData.session) {
+        res.json(signUpData);
+      } else {
+        // Attempt sign in immediately
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        if (signInError) {
+          res.json(signUpData); // Fallback to returning the signup data (likely needs confirmation)
+        } else {
+          res.json(signInData);
+        }
+      }
     } catch (err: any) {
       console.error(`[SECURITY] Signup failed for ${email}: ${err.message}`);
       res.status(400).json({ error: err.message });
@@ -209,7 +223,7 @@ async function startServer() {
 
   // Secure Listing Creation with Usage Guards
   app.post("/api/listings/create", async (req, res) => {
-    const { title, price, category, description, imageUrl, images, lat, lng, userId } = req.body;
+    const { title, price, category, description, imageUrl, images, locationName, userId } = req.body;
 
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
@@ -242,8 +256,7 @@ async function startServer() {
           description,
           image_url: imageUrl,
           images: images || [imageUrl],
-          lat: lat ? parseFloat(lat) : undefined,
-          lng: lng ? parseFloat(lng) : undefined,
+          location_name: locationName,
           seller_id: userId,
           university_id: UA_UNIVERSITY_ID
         })
@@ -261,7 +274,7 @@ async function startServer() {
 
   // Secure Listing Update
   app.post("/api/listings/update", async (req, res) => {
-    const { id, title, price, category, description, imageUrl, images, lat, lng, userId } = req.body;
+    const { id, title, price, category, description, imageUrl, images, locationName, userId } = req.body;
 
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
@@ -288,8 +301,7 @@ async function startServer() {
           description,
           image_url: imageUrl || undefined,
           images: images || undefined,
-          lat: lat ? parseFloat(lat) : undefined,
-          lng: lng ? parseFloat(lng) : undefined
+          location_name: locationName
         })
         .eq("id", id)
         .select()
@@ -427,6 +439,74 @@ async function startServer() {
           });
         }
         res.json({ favorite: true });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Update User Profile
+  app.post("/api/profile/update", async (req, res) => {
+    const { userId, locationName, name, username, bio, avatarUrl, bannerUrl } = req.body;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          location: locationName,
+          full_name: name,
+          username: username,
+          bio: bio,
+          avatar_url: avatarUrl,
+          banner_url: bannerUrl
+        })
+        .eq("id", userId)
+        .select()
+        .single();
+  
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Follow/Unfollow Toggle
+  app.post("/api/profile/follow/toggle", async (req, res) => {
+    const { followerId, followingId } = req.body;
+    if (!followerId) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const { data: existing } = await supabase
+        .from("follows")
+        .select("*")
+        .eq("follower_id", followerId)
+        .eq("following_id", followingId)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from("follows")
+          .delete()
+          .eq("follower_id", followerId)
+          .eq("following_id", followingId);
+        res.json({ following: false });
+      } else {
+        await supabase
+          .from("follows")
+          .insert({ follower_id: followerId, following_id: followingId });
+        
+        // Notify the user being followed
+        await supabase.from("notifications").insert({
+          user_id: followingId,
+          type: 'system',
+          content: `Someone started following you!`,
+          link: `/profile/${followerId}`,
+          read: false
+        });
+
+        res.json({ following: true });
       }
     } catch (err: any) {
       res.status(500).json({ error: err.message });
