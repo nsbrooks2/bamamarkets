@@ -1,0 +1,176 @@
+import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
+import { ShoppingBag, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { motion } from 'motion/react';
+
+import { UA_UNIVERSITY_ID } from '../types';
+
+export const Login: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const navigate = useNavigate();
+
+  const validateEduEmail = (email: string) => {
+    return email.toLowerCase().endsWith('ua.edu');
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              university_id: UA_UNIVERSITY_ID,
+              university_name: 'University of Alabama',
+            }
+          }
+        });
+        
+        if (error) throw error;
+        
+        if (data.session) {
+          navigate('/');
+        } else {
+          alert('Check your email for the confirmation link! If you don\'t see it, check your spam folder.');
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (error) throw error;
+        if (data.session) {
+          navigate('/');
+        }
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-12">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-8 rounded-3xl border border-stone-200 shadow-xl"
+      >
+        <div className="text-center mb-8">
+          <div className="bg-crimson-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <ShoppingBag className="w-8 h-8 text-crimson-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-stone-900">
+            {isSignUp ? 'Create an account' : 'Welcome back'}
+          </h2>
+          <p className="text-stone-500 mt-2">
+            {isSignUp 
+              ? 'Join your campus marketplace today.' 
+              : 'Sign in to start buying and selling.'}
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-600 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <p>{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-stone-700 ml-1">University Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
+              <input 
+                type="email"
+                required
+                placeholder="yourname@email.com"
+                className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 focus:border-transparent outline-none transition-all"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-stone-700 ml-1">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
+              <input 
+                type="password"
+                required
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 focus:border-transparent outline-none transition-all"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button 
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-crimson-600 text-white rounded-xl font-bold hover:bg-crimson-700 transition-all shadow-lg shadow-crimson-200 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+          >
+            {loading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+
+        <div className="mt-8">
+          <div className="relative flex items-center justify-center mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-stone-200"></div>
+            </div>
+            <span className="relative px-4 bg-white text-stone-400 text-xs font-bold uppercase tracking-widest">Or continue with</span>
+          </div>
+
+          <button 
+            onClick={handleGoogleLogin}
+            className="w-full py-3 bg-white border border-stone-200 text-stone-700 rounded-xl font-semibold hover:bg-stone-50 transition-all flex items-center justify-center gap-3"
+          >
+            <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+            Google
+          </button>
+        </div>
+
+        <p className="text-center mt-8 text-sm text-stone-500">
+          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+          <button 
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-crimson-600 font-bold hover:underline"
+          >
+            {isSignUp ? 'Sign In' : 'Sign Up'}
+          </button>
+        </p>
+      </motion.div>
+    </div>
+  );
+};
