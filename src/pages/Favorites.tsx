@@ -28,8 +28,8 @@ export const Favorites: React.FC = () => {
 
       if (error) throw error;
       
-      const favoriteListings = (data as any[])
-        .map(f => f.listing)
+      const favoriteListings = (data || [])
+        .map((f: any) => f.listing)
         .filter(Boolean);
         
       setFavorites(favoriteListings);

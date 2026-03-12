@@ -15,12 +15,19 @@ export const Login: React.FC = () => {
   const navigate = useNavigate();
 
   const validateEduEmail = (email: string) => {
-    return email.toLowerCase().endsWith('ua.edu');
+    const lowerEmail = email.toLowerCase();
+    return lowerEmail.endsWith('ua.edu') || lowerEmail.endsWith('crimson.ua.edu');
   };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!validateEduEmail(email)) {
+      setError('Please use your official University of Alabama email (@ua.edu or @crimson.ua.edu)');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -162,23 +169,6 @@ export const Login: React.FC = () => {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        <div className="mt-8">
-          <div className="relative flex items-center justify-center mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-stone-200"></div>
-            </div>
-            <span className="relative px-4 bg-white text-stone-400 text-xs font-bold uppercase tracking-widest">Or continue with</span>
-          </div>
-
-          <button 
-            onClick={handleGoogleLogin}
-            className="w-full py-3 bg-white border border-stone-200 text-stone-700 rounded-xl font-semibold hover:bg-stone-50 transition-all flex items-center justify-center gap-3"
-          >
-            <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
-            Google
-          </button>
-        </div>
 
         <p className="text-center mt-8 text-sm text-stone-500">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}

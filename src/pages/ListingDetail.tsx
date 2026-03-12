@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { Listing, User } from '../types';
-import { MessageSquare, CreditCard, User as UserIcon, Tag, Calendar, ChevronLeft, Zap, AlertCircle, Heart, Star, MapPin, ChevronRight, ChevronLeft as ChevronLeftIcon } from 'lucide-react';
+import { MessageSquare, CreditCard, User as UserIcon, Tag, Calendar, ChevronLeft, Zap, AlertCircle, Heart, Star, MapPin, ChevronRight, ChevronLeft as ChevronLeftIcon, Copy, Check, DollarSign, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatDistanceToNow } from 'date-fns';
 import { Favorite, Review } from '../types';
@@ -23,6 +23,14 @@ export const ListingDetail: React.FC = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [canReview, setCanReview] = useState(false);
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   useEffect(() => {
     fetchListing();
@@ -57,6 +65,25 @@ export const ListingDetail: React.FC = () => {
       
       setReviews(reviewsData || []);
 
+      // Check if user can review
+      if (user && data.seller_id !== user.id) {
+        const { data: transaction } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('listing_id', id)
+          .eq('buyer_id', user.id)
+          .maybeSingle();
+        
+        const { data: existingReview } = await supabase
+          .from('reviews')
+          .select('id')
+          .eq('listing_id', id)
+          .eq('reviewer_id', user.id)
+          .maybeSingle();
+
+        setCanReview(!!transaction && !existingReview);
+      }
+
       // Increment view count (non-blocking)
       supabase.rpc('increment_views', { listing_id: id }).then(({ error }) => {
         if (error) console.error('Error incrementing views:', error);
@@ -74,7 +101,7 @@ export const ListingDetail: React.FC = () => {
       .select('*')
       .eq('user_id', user?.id)
       .eq('listing_id', id)
-      .single();
+      .maybeSingle();
     
     setIsFavorite(!!data);
   };
@@ -97,11 +124,12 @@ export const ListingDetail: React.FC = () => {
       setIsFavorite(favorite);
     } catch (err) {
       console.error('Error toggling favorite:', err);
+      alert('Failed to update favorite. Please try again.');
     }
   };
 
   const handleReviewSubmit = async () => {
-    if (!user || !listing || !newReview.comment.trim()) return;
+    if (!user || !listing || !newReview.comment.trim() || !canReview) return;
     setSubmittingReview(true);
     try {
       const { error } = await supabase
@@ -109,6 +137,7 @@ export const ListingDetail: React.FC = () => {
         .insert({
           reviewer_id: user.id,
           seller_id: listing.seller_id,
+          listing_id: listing.id,
           rating: newReview.rating,
           comment: newReview.comment.trim()
         });
@@ -117,6 +146,7 @@ export const ListingDetail: React.FC = () => {
       
       alert('Review submitted!');
       setNewReview({ rating: 5, comment: '' });
+      setCanReview(false); // Disable after submission
       fetchListing(); // Refresh reviews
     } catch (err: any) {
       alert('Error submitting review: ' + err.message);
@@ -155,29 +185,6 @@ export const ListingDetail: React.FC = () => {
       alert('Error sending message: ' + err.message);
     } finally {
       setSendingMessage(false);
-    }
-  };
-
-  const handleBuy = async () => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/payments/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listingId: listing?.id,
-          userId: user.id
-        })
-      });
-      
-      const { url } = await response.json();
-      if (url) window.location.href = url;
-    } catch (err) {
-      console.error('Error creating checkout session:', err);
     }
   };
 
@@ -298,6 +305,12 @@ export const ListingDetail: React.FC = () => {
         >
           <div className="space-y-4">
             <div className="flex items-center gap-3">
+              {listing.sold && (
+                <span className="px-3 py-1 bg-stone-900 text-white text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Sold
+                </span>
+              )}
               <span className="px-3 py-1 bg-crimson-100 text-crimson-700 text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1">
                 <Tag className="w-3 h-3" />
                 {listing.category}
@@ -306,6 +319,11 @@ export const ListingDetail: React.FC = () => {
                 <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1">
                   <Zap className="w-3 h-3 fill-amber-700" />
                   Boosted
+                </span>
+              )}
+              {listing.size && (
+                <span className="px-3 py-1 bg-stone-100 text-stone-700 text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1">
+                  Size: {listing.size}
                 </span>
               )}
             </div>
@@ -349,15 +367,127 @@ export const ListingDetail: React.FC = () => {
           </Link>
 
           {user?.id !== listing.seller_id ? (
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <button 
-                  onClick={handleBuy}
-                  className="flex-1 py-4 bg-crimson-600 text-white rounded-2xl font-bold hover:bg-crimson-700 transition-all shadow-lg shadow-crimson-200 flex items-center justify-center gap-2"
-                >
-                  <CreditCard className="w-5 h-5" />
-                  Buy Now
-                </button>
+            <div className="space-y-6">
+              {/* Payment Options Section */}
+              <div className="p-6 bg-white rounded-2xl border border-stone-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-stone-900 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-crimson-600" />
+                  Payment Options
+                </h3>
+                <p className="text-sm text-stone-500">
+                  This seller accepts direct payments via the following methods. 
+                  Contact them to arrange payment and pickup.
+                </p>
+                
+                <div className="space-y-3">
+                  {seller?.venmo_username && (
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-xs">V</div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 uppercase font-bold">Venmo</p>
+                          <p className="font-bold text-stone-900">{seller.venmo_username}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => copyToClipboard(seller.venmo_username!, 'venmo')}
+                        className="p-2 text-stone-400 hover:text-crimson-600 transition-colors"
+                      >
+                        {copiedField === 'venmo' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  )}
+
+                  {seller?.cashapp_username && (
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-green-600 font-bold text-xs">$</div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 uppercase font-bold">Cash App</p>
+                          <p className="font-bold text-stone-900">{seller.cashapp_username}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => copyToClipboard(seller.cashapp_username!, 'cashapp')}
+                        className="p-2 text-stone-400 hover:text-crimson-600 transition-colors"
+                      >
+                        {copiedField === 'cashapp' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  )}
+
+                  {seller?.paypal_username && (
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-800 font-bold text-xs">P</div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 uppercase font-bold">PayPal</p>
+                          <p className="font-bold text-stone-900">{seller.paypal_username}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => copyToClipboard(seller.paypal_username!, 'paypal')}
+                        className="p-2 text-stone-400 hover:text-crimson-600 transition-colors"
+                      >
+                        {copiedField === 'paypal' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  )}
+
+                  {seller?.zelle_email && (
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 font-bold text-xs">Z</div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 uppercase font-bold">Zelle</p>
+                          <p className="font-bold text-stone-900">{seller.zelle_email}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => copyToClipboard(seller.zelle_email!, 'zelle')}
+                        className="p-2 text-stone-400 hover:text-crimson-600 transition-colors"
+                      >
+                        {copiedField === 'zelle' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  )}
+
+                  {seller?.applepay_contact && (
+                    <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-stone-900 rounded-lg flex items-center justify-center text-white font-bold text-xs">A</div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 uppercase font-bold">Apple Pay</p>
+                          <p className="font-bold text-stone-900">{seller.applepay_contact}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => copyToClipboard(seller.applepay_contact!, 'applepay')}
+                        className="p-2 text-stone-400 hover:text-crimson-600 transition-colors"
+                      >
+                        {copiedField === 'applepay' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  )}
+
+                  {seller?.accepts_cash && (
+                    <div className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100">
+                      <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 font-bold text-xs">
+                        <DollarSign className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-stone-400 uppercase font-bold">Cash</p>
+                        <p className="font-bold text-stone-900">Accepts Cash in Person</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!seller?.venmo_username && !seller?.cashapp_username && !seller?.paypal_username && !seller?.zelle_email && !seller?.applepay_contact && !seller?.accepts_cash && (
+                    <div className="p-4 bg-stone-50 rounded-xl border border-dashed border-stone-200 text-center">
+                      <p className="text-sm text-stone-500 italic">No specific payment handles listed. Message the seller to arrange payment.</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="p-6 bg-white rounded-2xl border border-stone-200 shadow-sm space-y-4">
@@ -435,36 +565,47 @@ export const ListingDetail: React.FC = () => {
 
             {user && user.id !== listing.seller_id && (
               <div className="pt-4 border-t border-stone-100 space-y-4">
-                <p className="text-sm font-bold text-stone-900">Leave a Review</p>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setNewReview({ ...newReview, rating: star })}
-                      className="p-1"
+                {canReview ? (
+                  <>
+                    <p className="text-sm font-bold text-stone-900">Leave a Review</p>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setNewReview({ ...newReview, rating: star })}
+                          className="p-1"
+                        >
+                          <Star 
+                            className={`w-6 h-6 transition-all ${
+                              star <= newReview.rating ? 'text-amber-500 fill-amber-500 scale-110' : 'text-stone-300'
+                            }`} 
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea 
+                      rows={2}
+                      placeholder="Share your experience with this seller..."
+                      className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none resize-none text-sm"
+                      value={newReview.comment}
+                      onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                    />
+                    <button 
+                      onClick={handleReviewSubmit}
+                      disabled={submittingReview || !newReview.comment.trim()}
+                      className="w-full py-2 bg-stone-900 text-white rounded-xl font-bold hover:bg-stone-800 transition-all disabled:opacity-50 text-sm"
                     >
-                      <Star 
-                        className={`w-6 h-6 transition-all ${
-                          star <= newReview.rating ? 'text-amber-500 fill-amber-500 scale-110' : 'text-stone-300'
-                        }`} 
-                      />
+                      {submittingReview ? 'Submitting...' : 'Post Review'}
                     </button>
-                  ))}
-                </div>
-                <textarea 
-                  rows={2}
-                  placeholder="Share your experience with this seller..."
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none resize-none text-sm"
-                  value={newReview.comment}
-                  onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
-                />
-                <button 
-                  onClick={handleReviewSubmit}
-                  disabled={submittingReview || !newReview.comment.trim()}
-                  className="w-full py-2 bg-stone-900 text-white rounded-xl font-bold hover:bg-stone-800 transition-all disabled:opacity-50 text-sm"
-                >
-                  {submittingReview ? 'Submitting...' : 'Post Review'}
-                </button>
+                  </>
+                ) : (
+                  <div className="p-4 bg-stone-50 rounded-xl border border-dashed border-stone-200 text-center">
+                    <p className="text-sm text-stone-500 italic">
+                      Only verified purchasers can leave a review. 
+                      If you bought this item, ask the seller to mark it as sold to you.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { useNavigate } from 'react-router-dom';
-import { CATEGORIES, UA_UNIVERSITY_ID } from '../types';
-import { Camera, Upload, AlertCircle, CheckCircle2, X, MapPin } from 'lucide-react';
-import { motion } from 'motion/react';
+import { CATEGORIES, UA_UNIVERSITY_ID, CLOTHING_SIZES, SHOE_SIZES } from '../types';
+import { Camera, Upload, AlertCircle, CheckCircle2, X, MapPin, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const CreateListing: React.FC = () => {
   const { user } = useAuth();
@@ -18,9 +18,12 @@ export const CreateListing: React.FC = () => {
     title: '',
     price: '',
     category: CATEGORIES[0],
+    size: '',
     description: '',
     locationName: ''
   });
+
+  const [showSizeOptions, setShowSizeOptions] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -59,6 +62,12 @@ export const CreateListing: React.FC = () => {
     e.preventDefault();
     if (!user) return;
     
+    // Validation for Free Stuff
+    if (formData.category === 'Free Stuff' && parseFloat(formData.price) !== 0) {
+      setError('Items in the "Free Stuff" category must have a price of $0.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -83,19 +92,39 @@ export const CreateListing: React.FC = () => {
         imageUrls.push(publicUrl);
       }
 
-      const { error: insertError } = await supabase
+      // Prepare listing data
+      const listingData: any = {
+        title: formData.title,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        size: formData.size || null,
+        image_url: imageUrls[0] || '',
+        images: imageUrls,
+        location_name: formData.locationName,
+        university_id: UA_UNIVERSITY_ID,
+        seller_id: user.id
+      };
+
+      let { error: insertError } = await supabase
         .from('listings')
-        .insert({
-          title: formData.title,
-          description: formData.description,
-          price: parseFloat(formData.price),
-          category: formData.category,
-          image_url: imageUrls[0] || '',
-          images: imageUrls,
-          location_name: formData.locationName,
-          university_id: UA_UNIVERSITY_ID,
-          seller_id: user.id
-        });
+        .insert(listingData);
+
+      // Fallback if 'size' column doesn't exist in DB yet
+      if (insertError && (insertError.message.includes('size') || insertError.code === 'PGRST204')) {
+        console.warn('Database missing "size" column, falling back to description append');
+        const fallbackData = { ...listingData };
+        delete fallbackData.size;
+        if (formData.size) {
+          fallbackData.description = `${formData.description}\n\nSize: ${formData.size}`;
+        }
+        
+        const { error: retryError } = await supabase
+          .from('listings')
+          .insert(fallbackData);
+        
+        insertError = retryError;
+      }
 
       if (insertError) throw insertError;
 
@@ -106,6 +135,8 @@ export const CreateListing: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const isClothingOrShoes = formData.category === 'Clothes' || formData.category === 'Shoes';
 
   if (!user) {
     return (
@@ -213,32 +244,113 @@ export const CreateListing: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-stone-700 ml-1">Price ($)</label>
-            <input 
-              type="number"
-              required
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-stone-700 ml-1">Price ($)</label>
+              <input 
+                type="number"
+                required
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none disabled:opacity-50"
+                value={formData.price}
+                disabled={formData.category === 'Free Stuff'}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              />
+              {formData.category === 'Free Stuff' && (
+                <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider ml-1">Price locked to $0 for Free Stuff</p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-stone-700 ml-1">Category</label>
+              <div className="relative">
+                <select 
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none appearance-none"
+                  value={formData.category}
+                  onChange={(e) => {
+                    const newCat = e.target.value as any;
+                    setFormData({ 
+                      ...formData, 
+                      category: newCat,
+                      price: newCat === 'Free Stuff' ? '0' : formData.price,
+                      size: '' // Reset size when category changes
+                    });
+                  }}
+                >
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5 pointer-events-none" />
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-stone-700 ml-1">Category</label>
-            <select 
-              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none appearance-none"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            >
-              {CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
+          <AnimatePresence>
+            {isClothingOrShoes && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4 overflow-hidden"
+              >
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-stone-700 ml-1">Select Size</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Women's Sizes */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-stone-400 uppercase tracking-widest ml-1">Women's</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(formData.category === 'Clothes' ? CLOTHING_SIZES.womens : SHOE_SIZES.womens).map(s => (
+                          <button
+                            key={`w-${s}`}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, size: `Women's ${s}` })}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                              formData.size === `Women's ${s}`
+                                ? 'bg-crimson-600 text-white border-crimson-600 shadow-md'
+                                : 'bg-white text-stone-600 border-stone-200 hover:border-stone-400'
+                            }`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Men's Sizes */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-stone-400 uppercase tracking-widest ml-1">Men's</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(formData.category === 'Clothes' ? CLOTHING_SIZES.mens : SHOE_SIZES.mens).map(s => (
+                          <button
+                            key={`m-${s}`}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, size: `Men's ${s}` })}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                              formData.size === `Men's ${s}`
+                                ? 'bg-crimson-600 text-white border-crimson-600 shadow-md'
+                                : 'bg-white text-stone-600 border-stone-200 hover:border-stone-400'
+                            }`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {formData.size && (
+                    <p className="text-xs text-crimson-600 font-bold mt-2 ml-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Selected: {formData.size}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="space-y-1">
             <label className="text-sm font-semibold text-stone-700 ml-1">Description</label>

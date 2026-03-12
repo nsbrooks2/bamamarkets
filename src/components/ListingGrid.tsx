@@ -1,6 +1,7 @@
 import React from 'react';
 import { Listing } from '../types';
 import { ListingCard } from './ListingCard';
+import { AdCard } from './AdCard';
 import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 
@@ -41,15 +42,25 @@ export const ListingGrid: React.FC<ListingGridProps> = ({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {listings.map((listing) => (
-        <motion.div
-          key={listing.id}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          layout
-        >
-          <ListingCard listing={listing} />
-        </motion.div>
+      {listings.map((listing, index) => (
+        <React.Fragment key={listing.id}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            layout
+          >
+            <ListingCard listing={listing} />
+          </motion.div>
+          {(index + 1) % 10 === 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              layout
+            >
+              <AdCard />
+            </motion.div>
+          )}
+        </React.Fragment>
       ))}
     </div>
   );

@@ -16,18 +16,46 @@ export const Trending: React.FC = () => {
   const fetchTrendingListings = async () => {
     setLoading(true);
     try {
-      // Trending logic: Boosted first, then by views, then by date
-      const { data, error } = await supabase
+      // Fetch listings
+      let { data, error } = await supabase
         .from('listings')
-        .select('*')
-        .eq('university_id', UA_UNIVERSITY_ID)
-        .order('boosted', { ascending: false })
-        .order('views', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .select('*');
 
       if (error) throw error;
-      setListings(data || []);
+
+      // Process and sort listings
+      const processedListings = (data || []).map((listing: any) => ({
+        ...listing,
+        favorite_count: 0
+      }));
+
+      // Trending logic: 
+      // 1. Boosted listings always show up
+      // 2. Filter out sold items
+      // 3. Sort by: Boosted (priority), then views, then date
+      const trendingListings = processedListings
+        .filter(listing => !listing.sold)
+        .filter(listing => listing.boosted || listing.views > 5 || listing.featured)
+        .sort((a, b) => {
+          // Priority 1: Featured
+          if (a.featured && !b.featured) return -1;
+          if (!a.featured && b.featured) return 1;
+
+          // Priority 2: Boosted
+          if (a.boosted && !b.boosted) return -1;
+          if (!a.boosted && b.boosted) return 1;
+
+          // Priority 3: Views
+          if (a.views !== b.views) {
+            return (b.views || 0) - (a.views || 0);
+          }
+
+          // Priority 4: Newest
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        })
+        .slice(0, 24); // Limit to top 24 trending items
+
+      setListings(trendingListings);
     } catch (error) {
       console.error('Error fetching trending listings:', error);
     } finally {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Listing } from '../types';
-import { Zap, Tag, Heart, Star } from 'lucide-react';
+import { Zap, Tag, Heart, Star, Sparkles, Gift, TrendingUp } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -29,7 +29,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
       .select('*')
       .eq('user_id', user?.id)
       .eq('listing_id', listing.id)
-      .single();
+      .maybeSingle();
     
     setIsFavorite(!!data);
   };
@@ -55,6 +55,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
       setIsFavorite(favorite);
     } catch (err) {
       console.error('Error toggling favorite:', err);
+      alert('Failed to update favorite. Please try again.');
     }
   };
 
@@ -100,10 +101,39 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white' : ''}`} />
         </button>
 
-        {listing.boosted && (
-          <div className="absolute top-3 left-3 px-2 py-1 bg-amber-400 text-amber-950 text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1 shadow-sm">
+        {listing.sold && (
+          <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-[2px] z-20 flex items-center justify-center">
+            <div className="px-4 py-2 bg-stone-900 text-white text-sm font-bold uppercase tracking-widest rounded-full shadow-2xl border border-white/20">
+              Sold
+            </div>
+          </div>
+        )}
+
+        {listing.featured && (
+          <div className="absolute top-3 left-3 px-2 py-1 bg-crimson-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1 shadow-lg z-10">
+            <Sparkles className="w-3 h-3 fill-white" />
+            Featured
+          </div>
+        )}
+
+        {listing.boosted && !listing.featured && (
+          <div className="absolute top-3 left-3 px-2 py-1 bg-amber-400 text-amber-950 text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1 shadow-sm z-10">
             <Zap className="w-3 h-3 fill-amber-950" />
             Boosted
+          </div>
+        )}
+
+        {((listing.favorite_count && listing.favorite_count >= 5) || listing.views > 50) && !listing.featured && !listing.boosted && (
+          <div className="absolute top-3 left-3 px-2 py-1 bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1 shadow-sm z-10">
+            <TrendingUp className="w-3 h-3" />
+            Trending
+          </div>
+        )}
+
+        {listing.price === 0 && (
+          <div className="absolute top-3 left-3 px-2 py-1 bg-green-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1 shadow-sm z-10">
+            <Gift className="w-3 h-3" />
+            Free
           </div>
         )}
         
@@ -119,11 +149,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
             {listing.title}
           </h3>
           <span className="font-bold text-crimson-600 whitespace-nowrap">
-            ${listing.price}
+            {listing.price === 0 ? 'FREE' : `$${listing.price}`}
           </span>
         </div>
         
-        <div className="flex items-center gap-1 mb-3">
+        <div className="flex items-center gap-2 mb-3">
           {sellerRating !== null ? (
             <div className="flex items-center gap-1 text-amber-500">
               <Star className="w-3 h-3 fill-amber-500" />
@@ -131,6 +161,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
             </div>
           ) : (
             <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">New Seller</span>
+          )}
+          {listing.size && (
+            <span className="px-1.5 py-0.5 bg-stone-100 text-stone-600 text-[10px] font-bold rounded uppercase tracking-wider">
+              {listing.size}
+            </span>
           )}
         </div>
 

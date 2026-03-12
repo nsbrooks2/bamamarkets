@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { User as UserProfile, Listing } from '../types';
-import { Mail, Package, ShoppingCart, LogOut, Calendar, ShieldCheck, MapPin, Save, Camera, Image as ImageIcon, User as UserIcon, AtSign, Info, Users } from 'lucide-react';
+import { Mail, Package, ShoppingCart, LogOut, Calendar, ShieldCheck, MapPin, Save, Camera, Image as ImageIcon, User as UserIcon, AtSign, Info, Users, CreditCard } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -26,7 +26,13 @@ export const Profile: React.FC = () => {
     bio: '',
     locationName: '',
     avatarUrl: '',
-    bannerUrl: ''
+    bannerUrl: '',
+    venmo_username: '',
+    paypal_username: '',
+    zelle_email: '',
+    cashapp_username: '',
+    applepay_contact: '',
+    accepts_cash: false
   });
 
   useEffect(() => {
@@ -73,7 +79,13 @@ export const Profile: React.FC = () => {
         bio: data.bio || '',
         locationName: data.location || '',
         avatarUrl: data.avatar_url || '',
-        bannerUrl: data.banner_url || ''
+        bannerUrl: data.banner_url || '',
+        venmo_username: data.venmo_username || '',
+        paypal_username: data.paypal_username || '',
+        zelle_email: data.zelle_email || '',
+        cashapp_username: data.cashapp_username || '',
+        applepay_contact: data.applepay_contact || '',
+        accepts_cash: data.accepts_cash || false
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -164,6 +176,12 @@ export const Profile: React.FC = () => {
           location: formData.locationName,
           avatar_url: formData.avatarUrl,
           banner_url: formData.bannerUrl,
+          venmo_username: formData.venmo_username,
+          paypal_username: formData.paypal_username,
+          zelle_email: formData.zelle_email,
+          cashapp_username: formData.cashapp_username,
+          applepay_contact: formData.applepay_contact,
+          accepts_cash: formData.accepts_cash
         });
 
       if (error) throw error;
@@ -384,6 +402,87 @@ export const Profile: React.FC = () => {
                 value={formData.locationName}
                 onChange={(e) => setFormData({ ...formData, locationName: e.target.value })}
               />
+            </div>
+          </div>
+
+          <div className="mt-12">
+            <h3 className="text-lg font-bold text-stone-900 mb-6 flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-crimson-600" />
+              Payment Methods (P2P)
+            </h3>
+            <p className="text-sm text-stone-500 mb-6">
+              Add your payment handles so other students can pay you directly. 
+              Transactions happen outside of BamaMarket.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-stone-700 ml-1">Venmo Username</label>
+                <input 
+                  type="text"
+                  placeholder="@username"
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                  value={formData.venmo_username}
+                  onChange={(e) => setFormData({ ...formData, venmo_username: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-stone-700 ml-1">PayPal Username</label>
+                <input 
+                  type="text"
+                  placeholder="username"
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                  value={formData.paypal_username}
+                  onChange={(e) => setFormData({ ...formData, paypal_username: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-stone-700 ml-1">Zelle Email</label>
+                <input 
+                  type="email"
+                  placeholder="email@example.com"
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                  value={formData.zelle_email}
+                  onChange={(e) => setFormData({ ...formData, zelle_email: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-stone-700 ml-1">Cash App Username</label>
+                <input 
+                  type="text"
+                  placeholder="$username"
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                  value={formData.cashapp_username}
+                  onChange={(e) => setFormData({ ...formData, cashapp_username: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-stone-700 ml-1">Apple Pay Contact</label>
+                <input 
+                  type="text"
+                  placeholder="Phone or Email"
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                  value={formData.applepay_contact}
+                  onChange={(e) => setFormData({ ...formData, applepay_contact: e.target.value })}
+                />
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-stone-50 rounded-xl border border-stone-200">
+                <input 
+                  type="checkbox"
+                  id="accepts_cash"
+                  className="w-5 h-5 rounded border-stone-300 text-crimson-600 focus:ring-crimson-500"
+                  checked={formData.accepts_cash}
+                  onChange={(e) => setFormData({ ...formData, accepts_cash: e.target.checked })}
+                />
+                <label htmlFor="accepts_cash" className="text-sm font-semibold text-stone-700">
+                  Accept Cash (In-Person)
+                </label>
+              </div>
             </div>
           </div>
 

@@ -110,6 +110,8 @@ export const Notifications: React.FC = () => {
         return <MessageSquare className="w-5 h-5 text-blue-500" />;
       case 'favorite':
         return <Heart className="w-5 h-5 text-crimson-600 fill-crimson-600" />;
+      case 'price_drop':
+        return <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />;
       case 'offer':
         return <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />;
       case 'follow':
