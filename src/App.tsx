@@ -20,6 +20,7 @@ import { Notifications } from './pages/Notifications';
 import { AuthProvider } from './components/AuthProvider';
 import { useEffect } from 'react';
 import { initializeStorage } from './lib/supabase';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 export default function App() {
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="/notifications" element={<Notifications />} />
             </Routes>
           </main>
+          <SpeedInsights />
         </div>
       </AuthProvider>
     </Router>
