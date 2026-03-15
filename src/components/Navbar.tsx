@@ -70,8 +70,8 @@ export const Navbar: React.FC = () => {
   return (
     <nav className="bg-white/80 backdrop-blur-xl border-b border-stone-200 sticky top-0 z-50">
       <div className="container mx-auto px-6">
-        <div className="flex flex-col md:flex-row md:items-center md:h-20 gap-2 md:gap-4 py-3 md:py-0">
-          <div className="flex items-center justify-between w-full md:w-auto">
+        <div className="flex items-center h-20 gap-4">
+          <div className="flex-1 flex justify-start">
             <Link to="/" className="flex items-center gap-3 group">
               <div className="p-1 bg-stone-50 rounded-xl border border-stone-100 group-hover:scale-110 transition-transform duration-300">
                 <img 
@@ -81,31 +81,14 @@ export const Navbar: React.FC = () => {
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col hidden xs:flex">
                 <span className="text-xl md:text-2xl font-display font-black tracking-tight text-stone-900 leading-none">BamaMarkets</span>
                 <span className="text-[8px] md:text-[10px] font-black text-crimson-600 uppercase tracking-[0.2em]">The Capstone</span>
               </div>
             </Link>
-
-            {/* Mobile-only user actions in header */}
-            <div className="flex md:hidden items-center gap-3">
-              {user && (
-                <Link to="/notifications" className="relative p-2 text-stone-400">
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-crimson-600 rounded-full border border-white" />}
-                </Link>
-              )}
-              <Link to="/profile" className="w-8 h-8 rounded-full overflow-hidden border border-stone-200">
-                {avatarUrl ? (
-                  <img src={avatarUrl} className="w-full h-full object-cover" alt="" />
-                ) : (
-                  <User className="w-full h-full p-1.5 text-stone-400" />
-                )}
-              </Link>
-            </div>
           </div>
 
-          <div className="flex items-center gap-6 md:gap-8 overflow-x-auto no-scrollbar md:justify-center w-full md:w-auto py-2 md:py-0">
+          <div className="flex-none flex items-center gap-6 md:gap-8 overflow-x-auto no-scrollbar justify-center">
             {[
               { to: "/", icon: ShoppingBag, label: "Market" },
               { to: "/trending", icon: TrendingUp, label: "Trending" },
@@ -125,7 +108,7 @@ export const Navbar: React.FC = () => {
             ))}
           </div>
 
-          <div className="hidden md:flex items-center justify-end gap-4">
+          <div className="flex-1 flex justify-end items-center gap-2 md:gap-4">
             {user ? (
               <div className="flex items-center gap-2 sm:gap-4">
                 <Link to="/notifications" className="relative p-2.5 text-stone-400 hover:text-crimson-600 hover:bg-stone-50 rounded-full transition-all">

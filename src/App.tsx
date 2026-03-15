@@ -18,6 +18,7 @@ import { EditListing } from './pages/EditListing';
 import { Favorites } from './pages/Favorites';
 import { Notifications } from './pages/Notifications';
 import { AuthProvider } from './components/AuthProvider';
+import { Footer } from './components/Footer';
 import { useEffect } from 'react';
 import { initializeStorage } from './lib/supabase';
 
@@ -29,9 +30,9 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-stone-50 text-stone-900 font-sans">
+        <div className="min-h-screen bg-stone-50 text-stone-900 font-sans flex flex-col">
           <Navbar />
-          <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
+          <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 flex-grow">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/listing/:id" element={<ListingDetail />} />
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="/notifications" element={<Notifications />} />
             </Routes>
           </main>
+          <Footer />
         </div>
       </AuthProvider>
     </Router>
