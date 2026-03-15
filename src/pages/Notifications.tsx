@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { Notification } from '../types';
-import { Bell, MessageSquare, Heart, Zap, Check, Trash2, AlertCircle, Users } from 'lucide-react';
+import { Bell, MessageSquare, Heart, Zap, Check, Trash2, AlertCircle, Users, ChevronRight, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -116,9 +116,46 @@ export const Notifications: React.FC = () => {
         return <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />;
       case 'follow':
         return <Users className="w-5 h-5 text-emerald-500" />;
+      case 'system':
+        return <Bell className="w-5 h-5 text-blue-500" />;
+      case 'review':
+        return <Star className="w-5 h-5 text-amber-500 fill-amber-500" />;
       default:
         return <Bell className="w-5 h-5 text-stone-500" />;
     }
+  };
+
+  const getAction = (notification: Notification) => {
+    if (notification.type === 'system' && notification.content.includes('review')) {
+      let reviewLink = notification.link || '#';
+      // Fallback for old notifications that point to /listing/ID
+      if (reviewLink.startsWith('/listing/')) {
+        const listingId = reviewLink.split('/').pop();
+        reviewLink = `/profile?review=${listingId}`;
+      }
+      
+      return (
+        <Link 
+          to={reviewLink} 
+          className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-crimson-600 text-white text-xs font-bold rounded-lg hover:bg-crimson-700 transition-colors"
+        >
+          <Star className="w-3.5 h-3.5 fill-white" />
+          Leave a Review
+        </Link>
+      );
+    }
+    if (notification.link) {
+      return (
+        <Link 
+          to={notification.link} 
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-crimson-600 hover:underline"
+        >
+          View Details
+          <ChevronRight className="w-3.5 h-3.5" />
+        </Link>
+      );
+    }
+    return null;
   };
 
   if (!user) {
@@ -137,24 +174,24 @@ export const Notifications: React.FC = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="bg-stone-100 p-3 rounded-2xl">
-            <Bell className="w-6 h-6 text-stone-600" />
+    <div className="max-w-4xl mx-auto space-y-6 md:space-y-10 pb-20 md:pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="bg-stone-100 p-3 md:p-4 rounded-xl md:rounded-2xl">
+            <Bell className="w-5 h-5 md:w-6 md:h-6 text-stone-600" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-stone-900">Notifications</h1>
-            <p className="text-stone-500">Stay updated on your marketplace activity.</p>
+            <h1 className="text-2xl md:text-4xl font-display font-bold text-stone-900 tracking-tight">Notifications</h1>
+            <p className="text-stone-500 text-[10px] md:text-sm mt-0.5 md:mt-1">Stay updated on your marketplace activity.</p>
           </div>
         </div>
         
         {notifications.some(n => !n.read) && (
           <button 
             onClick={markAllAsRead}
-            className="text-sm font-bold text-crimson-600 hover:text-crimson-700 transition-colors flex items-center gap-1"
+            className="text-[10px] md:text-sm font-bold text-crimson-600 hover:text-crimson-700 transition-all flex items-center justify-center gap-2 px-4 py-2 bg-crimson-50 rounded-xl w-full md:w-auto"
           >
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
             Mark all as read
           </button>
         )}
@@ -174,55 +211,49 @@ export const Notifications: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className={`p-4 rounded-2xl border transition-all flex items-start gap-4 group ${
+                className={`p-6 rounded-3xl border transition-all flex items-start gap-5 group ${
                   notification.read 
-                    ? 'bg-white border-stone-100' 
-                    : 'bg-crimson-50/30 border-crimson-100 shadow-sm'
+                    ? 'bg-white border-stone-100 hover:border-stone-200' 
+                    : 'bg-crimson-50/20 border-crimson-100 shadow-sm'
                 }`}
               >
-                <div className={`p-2 rounded-xl shrink-0 ${notification.read ? 'bg-stone-100' : 'bg-white shadow-sm'}`}>
+                <div className={`p-2.5 md:p-3 rounded-xl md:rounded-2xl shrink-0 ${notification.read ? 'bg-stone-50' : 'bg-white shadow-sm'}`}>
                   {getIcon(notification.type)}
                 </div>
                 
                 <div className="flex-grow min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className={`text-sm leading-relaxed ${notification.read ? 'text-stone-600' : 'text-stone-900 font-medium'}`}>
-                      {notification.content}
-                    </p>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-start justify-between gap-3 md:gap-4">
+                    <div className="space-y-1">
+                      <p className={`text-sm md:text-base leading-relaxed ${notification.read ? 'text-stone-600' : 'text-stone-900 font-semibold'}`}>
+                        {notification.content}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[9px] md:text-[10px] text-stone-400 font-bold uppercase tracking-widest">
+                          {formatDistanceToNow(new Date(notification.at || notification.created_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 md:gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       {!notification.read && (
                         <button 
                           onClick={() => markAsRead(notification.id)}
-                          className="p-1 text-stone-400 hover:text-emerald-600 transition-colors"
+                          className="p-1.5 md:p-2 bg-stone-50 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg md:rounded-xl transition-all"
                           title="Mark as read"
                         >
-                          <Check className="w-4 h-4" />
+                          <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
                       )}
                       <button 
                         onClick={() => deleteNotification(notification.id)}
-                        className="p-1 text-stone-400 hover:text-red-600 transition-colors"
+                        className="p-1.5 md:p-2 bg-stone-50 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg md:rounded-xl transition-all"
                         title="Delete"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                       </button>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">
-                      {formatDistanceToNow(new Date(notification.at || notification.created_at), { addSuffix: true })}
-                    </span>
-                    {notification.link && (
-                      <Link 
-                        to={notification.link}
-                        className="text-[10px] font-bold text-crimson-600 uppercase tracking-widest hover:underline"
-                        onClick={() => markAsRead(notification.id)}
-                      >
-                        View Details
-                      </Link>
-                    )}
-                  </div>
+                  {getAction(notification)}
                 </div>
               </motion.div>
             ))}

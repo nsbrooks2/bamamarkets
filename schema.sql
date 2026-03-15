@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   cashapp_username TEXT,
   applepay_contact TEXT,
   accepts_cash BOOLEAN DEFAULT TRUE,
+  verified_student BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS listings (
   featured BOOLEAN DEFAULT FALSE,
   featured_expires_at TIMESTAMP WITH TIME ZONE,
   views INTEGER DEFAULT 0,
+  view_count INTEGER DEFAULT 0,
   sold BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -176,6 +178,7 @@ CREATE POLICY "Authenticated users can leave reviews" ON reviews FOR INSERT WITH
 
 -- Notifications policies
 CREATE POLICY "Users can view their own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert notifications" ON notifications FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "Users can update their own notifications" ON notifications FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own notifications" ON notifications FOR DELETE USING (auth.uid() = user_id);
 
@@ -190,6 +193,7 @@ CREATE POLICY "Users can send messages" ON messages FOR INSERT WITH CHECK (auth.
 
 -- Transactions policies
 CREATE POLICY "Users can view their own transactions" ON transactions FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
+CREATE POLICY "Sellers can insert transactions" ON transactions FOR INSERT WITH CHECK (auth.uid() = seller_id);
 
 -- Boost payments policies
 CREATE POLICY "Users can view their own boost payments" ON boost_payments FOR SELECT USING (auth.uid() = seller_id);
@@ -202,17 +206,27 @@ CREATE OR REPLACE FUNCTION increment_views(listing_id UUID)
 RETURNS void AS $$
 BEGIN
   UPDATE listings
-  SET views = views + 1
+  SET view_count = view_count + 1,
+      views = views + 1
   WHERE id = listing_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute to public
+GRANT EXECUTE ON FUNCTION increment_views(UUID) TO anon, authenticated;
 
 -- Trigger to create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name, avatar_url)
-  VALUES (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
+  INSERT INTO public.profiles (id, email, full_name, avatar_url, verified_student)
+  VALUES (
+    new.id, 
+    new.email, 
+    new.raw_user_meta_data->>'full_name', 
+    new.raw_user_meta_data->>'avatar_url',
+    (new.email LIKE '%.edu')
+  );
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

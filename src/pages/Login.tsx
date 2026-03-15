@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Mail, Lock, AlertCircle, ArrowRight, CheckCircle, X } from 'lucide-react';
 import { motion } from 'motion/react';
 
 import { UA_UNIVERSITY_ID } from '../types';
@@ -12,6 +12,7 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const navigate = useNavigate();
 
   const validateEduEmail = (email: string) => {
@@ -49,20 +50,10 @@ export const Login: React.FC = () => {
         if (signUpData.session) {
           navigate('/');
         } else {
-          // Attempt to sign in immediately after sign up
-          // This handles cases where sign up succeeds but doesn't auto-login 
-          // (though usually this is due to email confirmation being required)
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (signInError) {
-            // If sign in fails after sign up, it's likely email confirmation is required
-            alert('Account created! Please check your email for the confirmation link to activate your account.');
-          } else if (signInData.session) {
-            navigate('/');
-          }
+          // Show success modal and switch to login view
+          setShowSuccessModal(true);
+          setIsSignUp(false);
+          setPassword('');
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -180,6 +171,41 @@ export const Login: React.FC = () => {
           </button>
         </p>
       </motion.div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center relative"
+          >
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="absolute top-4 right-4 p-2 hover:bg-stone-100 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5 text-stone-400" />
+            </button>
+
+            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-10 h-10 text-emerald-600" />
+            </div>
+
+            <h3 className="text-2xl font-bold text-stone-900 mb-2">Check your email</h3>
+            <p className="text-stone-600 mb-8">
+              We've sent a confirmation link to <span className="font-semibold text-stone-900">{email}</span>. 
+              Please verify your email to activate your account.
+            </p>
+
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full py-3 bg-stone-900 text-white rounded-xl font-bold hover:bg-stone-800 transition-all"
+            >
+              Got it, thanks!
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

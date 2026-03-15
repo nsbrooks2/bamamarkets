@@ -64,6 +64,14 @@ const MessageSchema = z.object({
   message: z.string().min(1).max(1000).trim()
 });
 
+const ReviewSchema = z.object({
+  sellerId: z.string().uuid(),
+  reviewerId: z.string().uuid(),
+  listingId: z.string().uuid(),
+  rating: z.number().min(1).max(5),
+  comment: z.string().max(1000).optional()
+});
+
 // Rate Limiters
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
@@ -115,7 +123,7 @@ async function startServer() {
   app.use(express.json());
   app.use("/api", apiLimiter);
 
-  // Global APP_URL cleanup to prevent double slashes
+  // Global APP_URL cleanup
   const rawAppUrl = process.env.APP_URL || "";
   const appUrl = rawAppUrl.endsWith('/') ? rawAppUrl.slice(0, -1) : rawAppUrl;
   
@@ -291,16 +299,27 @@ async function startServer() {
     }
   });
 
-  app.use(express.json());
-  app.use("/api/", apiLimiter);
-
   // API Routes
   app.get("/api/health", async (req, res) => {
     // Check if tables exist
-    const { error: boostTableError } = await supabase.from('boost_payments').select('id').limit(1);
-    const { error: featureTableError } = await supabase.from('featured_payments').select('id').limit(1);
-    const { error: favoritesTableError } = await supabase.from('favorites').select('id').limit(1);
-    const { error: profilesTableError } = await supabase.from('profiles').select('id').limit(1);
+    const tables = [
+      'universities', 'profiles', 'listings', 'favorites', 
+      'reviews', 'notifications', 'follows', 'transactions', 
+      'messages', 'boost_payments', 'featured_payments'
+    ];
+    
+    const tableStatus: any = {};
+    let allExist = true;
+
+    for (const table of tables) {
+      const { error } = await supabase.from(table).select('count').limit(1);
+      if (error) {
+        tableStatus[table] = { exists: false, error: error.message };
+        allExist = false;
+      } else {
+        tableStatus[table] = { exists: true };
+      }
+    }
 
     res.json({ 
       status: "ok",
@@ -311,13 +330,8 @@ async function startServer() {
         appUrl: appUrl ? `${appUrl.slice(0, 15)}...` : null,
         webhookUrl: appUrl ? `${appUrl}/api/webhooks/stripe` : "APP_URL not set",
         sharedWebhookUrl: sharedAppUrl ? `${sharedAppUrl}/api/webhooks/stripe` : null,
-        tablesExist: !boostTableError && !featureTableError && !favoritesTableError && !profilesTableError,
-        errors: {
-          boostTable: boostTableError?.message,
-          featureTable: featureTableError?.message,
-          favoritesTable: favoritesTableError?.message,
-          profilesTable: profilesTableError?.message
-        }
+        tablesExist: allExist,
+        tableStatus
       }
     });
   });
@@ -574,6 +588,18 @@ async function startServer() {
     }
   });
 
+  // Increment View Count
+  app.post("/api/listings/:id/view", async (req, res) => {
+    const { id } = req.params;
+    try {
+      const { error } = await supabase.rpc("increment_views", { listing_id: id });
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Secure Listing Deletion
   app.post("/api/listings/delete", async (req, res) => {
     const { id, userId } = req.body;
@@ -749,6 +775,75 @@ async function startServer() {
         }
         res.json({ favorite: true });
       }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Mark Listing as Sold (Server-side to bypass RLS for notifications)
+  app.post("/api/listings/mark-as-sold", async (req, res) => {
+    const { listingId, buyerId, sellerId } = req.body;
+    if (!sellerId || !listingId || !buyerId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+      // 1. Verify ownership
+      const { data: listing, error: fetchError } = await supabase
+        .from("listings")
+        .select("*")
+        .eq("id", listingId)
+        .single();
+
+      if (fetchError || !listing) throw new Error("Listing not found");
+      if (listing.seller_id !== sellerId) return res.status(403).json({ error: "Forbidden" });
+
+      // 2. Create transaction
+      const { error: transError } = await supabase
+        .from("transactions")
+        .insert({
+          listing_id: listingId,
+          buyer_id: buyerId,
+          seller_id: sellerId,
+          sale_price: listing.price,
+          platform_fee: 0,
+          university_id: listing.university_id || UA_UNIVERSITY_ID
+        });
+
+      if (transError) throw transError;
+
+      // 3. Update listing status
+      const { error: updateError } = await supabase
+        .from("listings")
+        .update({ sold: true })
+        .eq("id", listingId);
+
+      if (updateError) throw updateError;
+
+      // 4. Notify buyer
+      await supabase.from("notifications").insert({
+        user_id: buyerId,
+        type: 'system',
+        content: `The seller marked "${listing.title}" as sold to you. You can now leave a review!`,
+        link: `/profile?review=${listingId}`,
+        read: false
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error(`[LISTING] Mark as sold failed: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Debug Reviews and Transactions
+  app.get("/api/debug/state", async (req, res) => {
+    try {
+      const { data: reviews } = await supabase.from("reviews").select("*");
+      const { data: transactions } = await supabase.from("transactions").select("*, listing:listings(title)");
+      const { data: listings } = await supabase.from("listings").select("id, title, seller_id");
+      
+      res.json({ reviews, transactions, listings });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

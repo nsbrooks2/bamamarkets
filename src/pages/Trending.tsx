@@ -19,7 +19,7 @@ export const Trending: React.FC = () => {
       // Fetch listings
       let { data, error } = await supabase
         .from('listings')
-        .select('*');
+        .select('*, seller:profiles(*)');
 
       if (error) throw error;
 
@@ -65,13 +65,13 @@ export const Trending: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-amber-100 rounded-2xl">
+      <div className="flex items-center gap-4 mb-10">
+        <div className="p-4 bg-amber-50 rounded-2xl">
           <TrendingUp className="w-6 h-6 text-amber-600" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-stone-900">Trending Now</h1>
-          <p className="text-stone-500">Most popular items on campus right now.</p>
+          <h1 className="text-4xl font-display font-bold tracking-tight text-stone-900">Trending Now</h1>
+          <p className="text-stone-500 text-sm mt-1">Most popular items on campus right now.</p>
         </div>
       </div>
 

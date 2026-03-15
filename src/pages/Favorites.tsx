@@ -57,13 +57,13 @@ export const Favorites: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <div className="bg-crimson-100 p-3 rounded-2xl">
+      <div className="flex items-center gap-4 mb-10">
+        <div className="bg-crimson-50 p-4 rounded-2xl">
           <Heart className="w-6 h-6 text-crimson-600 fill-crimson-600" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-stone-900">My Favorites</h1>
-          <p className="text-stone-500">Items you've saved for later.</p>
+          <h1 className="text-4xl font-display font-bold text-stone-900 tracking-tight">My Favorites</h1>
+          <p className="text-stone-500 text-sm">Items you've saved for later.</p>
         </div>
       </div>
 

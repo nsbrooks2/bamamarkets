@@ -6,7 +6,7 @@ import { ListingGrid } from '../components/ListingGrid';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { FilterDropdown } from '../components/FilterDropdown';
-import { Search, Filter, X, Star, TrendingUp, Trophy } from 'lucide-react';
+import { Search, Filter, X, Star, TrendingUp, Trophy, Sparkles, CheckCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -34,7 +34,7 @@ export const Home: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('listings')
-        .select('*');
+        .select('*, seller:profiles(*)');
       
       if (error) throw error;
 
@@ -57,7 +57,7 @@ export const Home: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('listings')
-        .select('*');
+        .select('*, seller:profiles(*)');
       
       if (error) throw error;
 
@@ -81,7 +81,7 @@ export const Home: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('listings')
-        .select('*');
+        .select('*, seller:profiles(*)');
 
       if (error) throw error;
       
@@ -146,47 +146,70 @@ export const Home: React.FC = () => {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12 pb-12">
       {/* Hero Section */}
-      <section className="text-center py-12 px-4 bg-crimson-600 rounded-3xl text-white relative overflow-hidden">
-        <div className="relative z-10 max-w-2xl mx-auto space-y-6">
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-bold tracking-tight"
-          >
-            BamaMarkets
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-crimson-50 text-lg"
-          >
-            The exclusive marketplace for University of Alabama students.
-          </motion.p>
+      <section className="relative py-16 md:py-24 px-6 bg-crimson-600 rounded-[2rem] md:rounded-[3rem] text-white overflow-hidden shadow-2xl shadow-crimson-200">
+        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-8 md:space-y-10">
+          <div className="space-y-4 md:space-y-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em]"
+            >
+              <Sparkles className="w-3 h-3 text-amber-300" />
+              Exclusive to UA Students
+            </motion.div>
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-5xl sm:text-6xl md:text-8xl font-display font-bold tracking-tighter leading-[0.85]"
+            >
+              BamaMarkets
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-crimson-50 text-lg md:text-2xl font-medium max-w-2xl mx-auto opacity-90 leading-relaxed px-4"
+            >
+              The safest way to buy and sell on campus. 
+              Built exclusively for the Capstone.
+            </motion.p>
+          </div>
           
-          <SearchBar 
-            value={searchQuery} 
-            onChange={setSearchQuery} 
-            placeholder="Search for textbooks, furniture, and more..."
-          />
+          <div className="max-w-2xl mx-auto px-2 md:px-0">
+            <SearchBar 
+              value={searchQuery} 
+              onChange={setSearchQuery} 
+              placeholder="Search textbooks, furniture..."
+            />
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-3 md:gap-6 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] opacity-80">
+            <span className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10"><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Verified Students</span>
+            <span className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10"><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Zero Fees</span>
+            <span className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10"><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Campus Pickup</span>
+          </div>
         </div>
         
-        {/* Background Accents */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-crimson-500 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl opacity-50"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-crimson-700 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl opacity-50"></div>
+        {/* Background Accents - More dynamic */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-crimson-400 rounded-full -translate-y-1/2 translate-x-1/2 blur-[100px] opacity-40"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-crimson-800 rounded-full translate-y-1/2 -translate-x-1/2 blur-[100px] opacity-60"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_70%)]"></div>
       </section>
 
       {/* Featured Section */}
       {featuredListings.length > 0 && selectedCategory === 'All' && !searchQuery && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-              <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-              Featured Listings
-            </h2>
-            <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">Premium Placement</span>
+        <section className="space-y-6">
+          <div className="flex items-end justify-between px-2">
+            <div>
+              <h2 className="text-2xl font-display font-bold text-stone-900 flex items-center gap-2">
+                <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+                Featured Picks
+              </h2>
+              <p className="text-sm text-stone-500 font-medium">Hand-picked premium listings from campus sellers.</p>
+            </div>
+            <span className="hidden sm:block text-[10px] font-black text-stone-300 uppercase tracking-[0.2em]">Premium Placement</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredListings.map((listing) => (

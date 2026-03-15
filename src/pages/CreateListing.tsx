@@ -159,13 +159,13 @@ export const CreateListing: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white p-8 rounded-3xl border border-stone-200 shadow-xl"
       >
-        <div className="flex items-center gap-4 mb-8">
-          <div className="bg-crimson-100 p-3 rounded-2xl">
+        <div className="flex items-center gap-4 mb-10">
+          <div className="bg-crimson-50 p-4 rounded-2xl">
             <Upload className="w-6 h-6 text-crimson-600" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-stone-900">Create a Listing</h2>
-            <p className="text-stone-500">List your item for other students to see.</p>
+            <h2 className="text-3xl font-display font-bold text-stone-900 tracking-tight">Create a Listing</h2>
+            <p className="text-stone-500 text-sm">List your item for other students to see.</p>
           </div>
         </div>
 
@@ -178,9 +178,12 @@ export const CreateListing: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Image Upload */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-stone-700 ml-1">Item Images (Up to 5)</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-bold text-stone-700 uppercase tracking-widest">Item Images</label>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{imagePreviews.length}/5 Photos</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               {imagePreviews.map((preview, index) => (
                 <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-stone-200 group">
                   <img src={preview} className="w-full h-full object-cover" alt={`Preview ${index}`} />
@@ -216,27 +219,27 @@ export const CreateListing: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-stone-700 ml-1">Title</label>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Title</label>
               <input 
                 type="text"
                 required
                 placeholder="e.g. Calculus Textbook"
-                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                className="w-full px-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none transition-all hover:border-stone-300"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-stone-700 ml-1">Dorm / Apartment Name</label>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Location</label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
                 <input 
                   type="text"
                   required
                   placeholder="e.g. Tutwiler Hall"
-                  className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                  className="w-full pl-12 pr-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none transition-all hover:border-stone-300"
                   value={formData.locationName}
                   onChange={(e) => setFormData({ ...formData, locationName: e.target.value })}
                 />
@@ -244,16 +247,16 @@ export const CreateListing: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-stone-700 ml-1">Price ($)</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Price ($)</label>
               <input 
                 type="number"
                 required
                 min="0"
                 step="0.01"
                 placeholder="0.00"
-                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none disabled:opacity-50"
+                className="w-full px-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none disabled:opacity-50 transition-all hover:border-stone-300"
                 value={formData.price}
                 disabled={formData.category === 'Free Stuff'}
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
@@ -263,11 +266,11 @@ export const CreateListing: React.FC = () => {
               )}
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-stone-700 ml-1">Category</label>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Category</label>
               <div className="relative">
                 <select 
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none appearance-none"
+                  className="w-full px-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none appearance-none transition-all hover:border-stone-300"
                   value={formData.category}
                   onChange={(e) => {
                     const newCat = e.target.value as any;
@@ -283,7 +286,7 @@ export const CreateListing: React.FC = () => {
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5 pointer-events-none" />
+                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -352,13 +355,13 @@ export const CreateListing: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-stone-700 ml-1">Description</label>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Description</label>
             <textarea 
               required
-              rows={4}
+              rows={5}
               placeholder="Describe the item's condition, features, etc."
-              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none resize-none"
+              className="w-full px-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none resize-none transition-all hover:border-stone-300"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
@@ -367,10 +370,10 @@ export const CreateListing: React.FC = () => {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-crimson-600 text-white rounded-xl font-bold hover:bg-crimson-700 transition-all shadow-lg shadow-crimson-200 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-5 bg-crimson-600 text-white rounded-2xl font-bold hover:bg-crimson-700 transition-all shadow-xl shadow-crimson-200 disabled:opacity-50 flex items-center justify-center gap-3 text-lg"
           >
             {loading ? 'Creating Listing...' : 'Post Listing'}
-            <CheckCircle2 className="w-5 h-5" />
+            <CheckCircle2 className="w-6 h-6" />
           </button>
         </form>
       </motion.div>

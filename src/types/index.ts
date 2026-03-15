@@ -26,6 +26,7 @@ export interface User {
   cashapp_username?: string;
   applepay_contact?: string;
   accepts_cash?: boolean;
+  verified_student?: boolean;
 }
 
 export interface Follow {
@@ -51,6 +52,7 @@ export interface Listing {
   featured: boolean;
   featured_expires_at?: string;
   views: number;
+  view_count: number;
   favorite_count?: number;
   sold: boolean;
   lat?: number;

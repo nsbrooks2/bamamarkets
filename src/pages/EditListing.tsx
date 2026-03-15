@@ -155,13 +155,13 @@ export const EditListing: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white p-8 rounded-3xl border border-stone-200 shadow-xl"
       >
-        <div className="flex items-center gap-4 mb-8">
-          <div className="bg-crimson-100 p-3 rounded-2xl">
+        <div className="flex items-center gap-4 mb-10">
+          <div className="bg-crimson-50 p-4 rounded-2xl">
             <Save className="w-6 h-6 text-crimson-600" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-stone-900">Edit Listing</h2>
-            <p className="text-stone-500">Update your item's information.</p>
+            <h2 className="text-3xl font-display font-bold text-stone-900 tracking-tight">Edit Listing</h2>
+            <p className="text-stone-500 text-sm">Update your item's information.</p>
           </div>
         </div>
 
@@ -174,11 +174,11 @@ export const EditListing: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Image Upload */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-stone-700 ml-1">Item Image</label>
+          <div className="space-y-4">
+            <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Item Image</label>
             <div 
-              className={`relative aspect-video rounded-2xl border-2 border-dashed transition-all flex items-center justify-center overflow-hidden cursor-pointer ${
-                imagePreview ? 'border-crimson-400' : 'border-stone-200 hover:border-stone-400 bg-stone-50'
+              className={`relative aspect-video rounded-3xl border-2 border-dashed transition-all flex items-center justify-center overflow-hidden cursor-pointer ${
+                imagePreview ? 'border-crimson-400 shadow-lg shadow-crimson-100' : 'border-stone-200 hover:border-stone-400 bg-stone-50'
               }`}
               onClick={() => document.getElementById('image-upload')?.click()}
             >
@@ -200,37 +200,37 @@ export const EditListing: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-stone-700 ml-1">Title</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Title</label>
               <input 
                 type="text"
                 required
-                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                className="w-full px-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none transition-all hover:border-stone-300"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-stone-700 ml-1">Price ($)</label>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Price ($)</label>
               <input 
                 type="number"
                 required
                 min="0"
                 step="0.01"
-                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none"
+                className="w-full px-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none transition-all hover:border-stone-300"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
               />
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-stone-700 ml-1">Category</label>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Category</label>
             <div className="relative">
               <select 
-                className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none appearance-none"
+                className="w-full px-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none appearance-none transition-all hover:border-stone-300"
                 value={formData.category}
                 onChange={(e) => {
                   const newCat = e.target.value as any;
@@ -245,7 +245,7 @@ export const EditListing: React.FC = () => {
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5 pointer-events-none" />
+              <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5 pointer-events-none" />
             </div>
           </div>
 
@@ -313,12 +313,12 @@ export const EditListing: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-stone-700 ml-1">Description</label>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-stone-700 uppercase tracking-widest ml-1">Description</label>
             <textarea 
               required
-              rows={4}
-              className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-crimson-400 outline-none resize-none"
+              rows={5}
+              className="w-full px-5 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-crimson-400 outline-none resize-none transition-all hover:border-stone-300"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
@@ -327,10 +327,10 @@ export const EditListing: React.FC = () => {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-crimson-600 text-white rounded-xl font-bold hover:bg-crimson-700 transition-all shadow-lg shadow-crimson-200 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-5 bg-crimson-600 text-white rounded-2xl font-bold hover:bg-crimson-700 transition-all shadow-xl shadow-crimson-200 disabled:opacity-50 flex items-center justify-center gap-3 text-lg"
           >
             {loading ? 'Updating...' : 'Save Changes'}
-            <Save className="w-5 h-5" />
+            <Save className="w-6 h-6" />
           </button>
         </form>
       </motion.div>
