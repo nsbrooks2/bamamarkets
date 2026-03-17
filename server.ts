@@ -108,69 +108,76 @@ const upload = multer({
 
 const app = express();
 
-async function startServer() {
-  const PORT = 3000;
+// Global APP_URL cleanup
+const rawAppUrl = process.env.APP_URL || "";
+const appUrl = rawAppUrl.endsWith('/') ? rawAppUrl.slice(0, -1) : rawAppUrl;
 
-  // Trust proxy for rate limiting behind Cloud Run/Nginx
-  app.set('trust proxy', 1);
+// Try to get Shared App URL if available
+const sharedAppUrl = (process.env.SHARED_APP_URL || "").endsWith('/') 
+  ? (process.env.SHARED_APP_URL || "").slice(0, -1) 
+  : (process.env.SHARED_APP_URL || "");
 
-  // Global APP_URL cleanup
-  const rawAppUrl = process.env.APP_URL || "";
-  const appUrl = rawAppUrl.endsWith('/') ? rawAppUrl.slice(0, -1) : rawAppUrl;
-  
-  // Try to get Shared App URL if available
-  const sharedAppUrl = (process.env.SHARED_APP_URL || "").endsWith('/') 
-    ? (process.env.SHARED_APP_URL || "").slice(0, -1) 
-    : (process.env.SHARED_APP_URL || "");
+// Trust proxy for rate limiting behind Cloud Run/Nginx/Vercel
+app.set('trust proxy', 1);
 
-  // Stripe Webhook (needs raw body) - MUST be defined BEFORE express.json()
-  // Handle multiple variations to avoid 302 redirects from proxies/middleware
-  app.get(["/api/webhooks/stripe", "/api/webhooks/stripe/"], (req, res) => {
-    res.send("Stripe Webhook endpoint is active. Please use POST for actual webhook events.");
-  });
+// 1. Stripe Webhook (MUST be defined BEFORE express.json())
+app.get(["/api/webhooks/stripe", "/api/webhooks/stripe/"], (req, res) => {
+  res.send("Stripe Webhook endpoint is active. Please use POST for actual webhook events.");
+});
 
-  app.post(["/api/webhooks/stripe", "/api/webhooks/stripe/"], express.raw({ type: "*/*" }), async (req, res) => {
-    const sig = req.headers["stripe-signature"];
-    const stripe = getStripe();
-    let event;
+app.post(["/api/webhooks/stripe", "/api/webhooks/stripe/"], express.raw({ type: "*/*" }), async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  let stripe;
+  try {
+    stripe = getStripe();
+  } catch (e: any) {
+    console.error("[STRIPE] Init Error:", e.message);
+    return res.status(500).json({ error: "Stripe Init Error", message: e.message });
+  }
 
-    console.log(`[STRIPE] Webhook request received. Path: ${req.path}, Signature: ${sig ? 'Present' : 'Missing'}, Body Length: ${req.body?.length || 0}`);
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.error("[STRIPE] Missing Webhook Secret");
+    return res.status(500).json({ error: "Configuration Error", message: "STRIPE_WEBHOOK_SECRET is missing" });
+  }
 
-    if (!process.env.STRIPE_WEBHOOK_SECRET) {
-      console.error("[SECURITY] STRIPE_WEBHOOK_SECRET is not set in environment variables.");
-      return res.status(500).send("Webhook Secret not configured");
-    }
+  try {
+    const secret = (process.env.STRIPE_WEBHOOK_SECRET || "").trim();
+    const event = stripe.webhooks.constructEvent(
+      req.body,
+      sig as string,
+      secret
+    );
 
-    try {
-      const secret = (process.env.STRIPE_WEBHOOK_SECRET || "").trim();
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig as string,
-        secret
-      );
-      console.log(`[STRIPE] Webhook verified successfully: ${event.type}`);
-    } catch (err: any) {
-      console.error(`[SECURITY] Webhook Verification Failed: ${err.message}`);
-      console.log(`[DEBUG] Secret length: ${process.env.STRIPE_WEBHOOK_SECRET?.length || 0}`);
-      console.log(`[DEBUG] Body type: ${typeof req.body}, Is Buffer: ${Buffer.isBuffer(req.body)}`);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    // Handle the event
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       await processCompletedSession(session);
     }
-
     res.json({ received: true });
+  } catch (err: any) {
+    console.error(`[STRIPE] Webhook Error: ${err.message}`);
+    return res.status(400).json({ error: "Webhook Error", message: err.message });
+  }
+});
+
+// 2. Global Middleware
+app.use(express.json());
+app.use("/api", apiLimiter);
+
+// 3. Debug Route (Safe check for keys)
+app.get("/api/debug-keys", (req, res) => {
+  res.json({
+    APP_URL: appUrl ? `${appUrl.slice(0, 15)}...` : "MISSING",
+    STRIPE_KEY: process.env.STRIPE_SECRET_KEY ? `${process.env.STRIPE_SECRET_KEY.slice(0, 7)}...` : "MISSING",
+    STRIPE_WEBHOOK: process.env.STRIPE_WEBHOOK_SECRET ? `${process.env.STRIPE_WEBHOOK_SECRET.slice(0, 8)}...` : "MISSING",
+    SUPABASE_URL: process.env.VITE_SUPABASE_URL ? "SET" : "MISSING",
+    SUPABASE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? "SET" : "MISSING",
+    NODE_ENV: process.env.NODE_ENV,
+    IS_VERCEL: !!process.env.VERCEL
   });
+});
 
-  // Global Middleware
-  app.use(express.json());
-  app.use("/api", apiLimiter);
-
-  // Helper to process a completed session (used by webhook and manual sync)
-  async function processCompletedSession(session: Stripe.Checkout.Session) {
+// Helper to process a completed session (used by webhook and manual sync)
+async function processCompletedSession(session: Stripe.Checkout.Session) {
     const metadata = session.metadata;
     if (!metadata) {
       console.error(`[PAYMENT] No metadata found in checkout session: ${session.id}`);
@@ -1036,7 +1043,11 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
+// Initialize the server
+async function startServer() {
+  const PORT = 3000;
+
+  // Vite middleware for development (Dynamic Import to save memory in production)
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
