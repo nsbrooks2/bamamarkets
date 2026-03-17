@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -25,12 +24,7 @@ function getStripe() {
   if (!stripeClient) {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) {
-      console.warn("STRIPE_SECRET_KEY is not set. Stripe functionality will be disabled.");
-      // Return a dummy object that throws on use to prevent crash on startup
-      return {
-        webhooks: { constructEvent: () => { throw new Error("Stripe not configured") } },
-        checkout: { sessions: { create: () => { throw new Error("Stripe not configured") } } }
-      } as unknown as Stripe;
+      throw new Error("STRIPE_SECRET_KEY is missing. Please add it to your Vercel Environment Variables (sk_live_...).");
     }
     stripeClient = new Stripe(key);
   }
@@ -939,14 +933,14 @@ async function startServer() {
   // Create Checkout Session for Boosting
   app.post("/api/payments/create-boost-checkout", async (req, res) => {
     const { listingId, userId } = req.body;
-    const stripe = getStripe();
-
-    if (!appUrl) {
-      console.error("[PAYMENT] APP_URL environment variable is not set");
-      return res.status(500).json({ error: "Server configuration error: APP_URL is missing. Please set it in the environment variables." });
-    }
-
+    
     try {
+      const stripe = getStripe();
+
+      if (!appUrl) {
+        throw new Error("Server configuration error: APP_URL is missing.");
+      }
+
       const { data: listing, error } = await supabase
         .from("listings")
         .select("*")
@@ -992,14 +986,14 @@ async function startServer() {
   // Create Checkout Session for Featuring
   app.post("/api/payments/create-feature-checkout", async (req, res) => {
     const { listingId, userId } = req.body;
-    const stripe = getStripe();
-
-    if (!appUrl) {
-      console.error("[PAYMENT] APP_URL environment variable is not set");
-      return res.status(500).json({ error: "Server configuration error: APP_URL is missing. Please set it in the environment variables." });
-    }
-
+    
     try {
+      const stripe = getStripe();
+
+      if (!appUrl) {
+        throw new Error("Server configuration error: APP_URL is missing.");
+      }
+
       const { data: listing, error } = await supabase
         .from("listings")
         .select("*")
@@ -1043,7 +1037,8 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -1051,11 +1046,21 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // Serve static files in production
-    app.use(express.static(path.join(__dirname, "dist")));
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  // Global Error Handler to ensure JSON responses
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[SERVER ERROR]', err);
+    res.status(500).json({ 
+      error: "Internal Server Error", 
+      message: err.message || "An unexpected error occurred" 
+    });
+  });
 
   if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
     app.listen(PORT, "0.0.0.0", () => {
