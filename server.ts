@@ -7,13 +7,19 @@ import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
 import { z } from "zod";
-import createDOMPurify from "dompurify";
-import { JSDOM } from "jsdom";
 
 dotenv.config();
 
-const window = new JSDOM("").window;
-const DOMPurify = createDOMPurify(window as any);
+// Simple sanitization to avoid heavy/broken JSDOM on Vercel
+const sanitize = (text: string) => {
+  if (!text) return "";
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -432,7 +438,7 @@ async function processCompletedSession(session: Stripe.Checkout.Session) {
       const { title, price, category, size, description, imageUrl, images, locationName, userId } = validatedData;
 
       // 2. Sanitize Description (XSS Protection)
-      const cleanDescription = DOMPurify.sanitize(description);
+      const cleanDescription = sanitize(description);
 
       // 3. Usage Guard: Limit listings per user per day (max 10)
       const today = new Date();
@@ -511,7 +517,7 @@ async function processCompletedSession(session: Stripe.Checkout.Session) {
       const { title, price, category, size, description, imageUrl, images, locationName, userId } = validatedData;
 
       // 2. Sanitize Description
-      const cleanDescription = DOMPurify.sanitize(description);
+      const cleanDescription = sanitize(description);
 
       // 3. Check ownership and get old price
       const { data: existing, error: checkError } = await supabase
@@ -668,7 +674,7 @@ async function processCompletedSession(session: Stripe.Checkout.Session) {
       const { listingId, senderId, receiverId, message } = validatedData;
 
       // 2. Sanitize Message
-      const cleanMessage = DOMPurify.sanitize(message);
+      const cleanMessage = sanitize(message);
 
       // 3. Usage Guard: Limit messages per minute (max 10)
       const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
