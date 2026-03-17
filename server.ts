@@ -120,10 +120,6 @@ async function startServer() {
   // Trust proxy for rate limiting behind Cloud Run/Nginx
   app.set('trust proxy', 1);
 
-  // Global Middleware
-  app.use(express.json());
-  app.use("/api", apiLimiter);
-
   // Global APP_URL cleanup
   const rawAppUrl = process.env.APP_URL || "";
   const appUrl = rawAppUrl.endsWith('/') ? rawAppUrl.slice(0, -1) : rawAppUrl;
@@ -133,7 +129,7 @@ async function startServer() {
     ? (process.env.SHARED_APP_URL || "").slice(0, -1) 
     : (process.env.SHARED_APP_URL || "");
 
-  // Stripe Webhook (needs raw body)
+  // Stripe Webhook (needs raw body) - MUST be defined BEFORE express.json()
   // Handle multiple variations to avoid 302 redirects from proxies/middleware
   app.get(["/api/webhooks/stripe", "/api/webhooks/stripe/"], (req, res) => {
     res.send("Stripe Webhook endpoint is active. Please use POST for actual webhook events.");
@@ -175,16 +171,20 @@ async function startServer() {
     res.json({ received: true });
   });
 
+  // Global Middleware
+  app.use(express.json());
+  app.use("/api", apiLimiter);
+
   // Helper to process a completed session (used by webhook and manual sync)
   async function processCompletedSession(session: Stripe.Checkout.Session) {
     const metadata = session.metadata;
     if (!metadata) {
-      console.error("[PAYMENT] No metadata found in checkout session");
+      console.error(`[PAYMENT] No metadata found in checkout session: ${session.id}`);
       return;
     }
 
     const { listingId, university_id, amount, type, userId } = metadata;
-    console.log(`[PAYMENT] Processing session for ${type} - Listing: ${listingId}`);
+    console.log(`[PAYMENT] Processing session ${session.id} for ${type} - Listing: ${listingId}, User: ${userId}`);
 
     if (type === "boost_listing") {
       const expiresAt = new Date();
@@ -193,14 +193,18 @@ async function startServer() {
       console.log(`[PAYMENT] Boosting listing ${listingId} until ${expiresAt.toISOString()}`);
 
       // Update listing boost
-      const { error: updateError } = await supabase.from("listings").update({
+      const { data: updateData, error: updateError } = await supabase.from("listings").update({
         boosted: true,
         boost_expires_at: expiresAt.toISOString()
-      }).eq("id", listingId);
+      }).eq("id", listingId).select();
 
       if (updateError) {
         console.error(`[PAYMENT] Error updating listing boost: ${updateError.message}`);
         return;
+      }
+
+      if (!updateData || updateData.length === 0) {
+        console.error(`[PAYMENT] Listing ${listingId} not found or not updated during boost.`);
       }
 
       // Record boost payment
@@ -224,14 +228,18 @@ async function startServer() {
       console.log(`[PAYMENT] Featuring listing ${listingId} until ${expiresAt.toISOString()}`);
 
       // Update listing feature
-      const { error: updateError } = await supabase.from("listings").update({
+      const { data: updateData, error: updateError } = await supabase.from("listings").update({
         featured: true,
         featured_expires_at: expiresAt.toISOString()
-      }).eq("id", listingId);
+      }).eq("id", listingId).select();
 
       if (updateError) {
         console.error(`[PAYMENT] Error updating listing feature: ${updateError.message}`);
         return;
+      }
+
+      if (!updateData || updateData.length === 0) {
+        console.error(`[PAYMENT] Listing ${listingId} not found or not updated during feature.`);
       }
 
       // Record feature payment
@@ -327,6 +335,7 @@ async function startServer() {
       config: {
         hasAppUrl: !!appUrl,
         hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+        stripeMode: process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_') ? 'Test' : (process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_') ? 'Live' : 'Unknown'),
         hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
         appUrl: appUrl ? `${appUrl.slice(0, 15)}...` : null,
         webhookUrl: appUrl ? `${appUrl}/api/webhooks/stripe` : "APP_URL not set",
